@@ -25,7 +25,12 @@ pag.PAUSE = 0.005
 region = (843, 383, 1065, 694)
 last_reroll_time = 0
 is_rolling = False  # Flag to indicate if the program is actively rolling
-starforce_buttons = ["path/to/enhance.png", "path/to/okay.png", "path/to/ok.png"]
+starforce_buttons = [
+   "img/function/10star.png",
+   "img/function/enhance.png",
+   "img/function/sfok.png",
+   "img/function/enhance2.png",
+   ]
 
 # Tooltips when hovering on buttons
 class Tooltip:
@@ -68,8 +73,7 @@ def cancel_reroll():
     if is_rolling:
         # If the program is rolling, abort rolling
         is_rolling = False
-        print("Cubing aborted.")
-        pag.alert(f"Stopped.")
+        print("Functions stopped.")
         return False
 keyboard.add_hotkey('shift', cancel_reroll)
 
@@ -184,7 +188,7 @@ def auto_rank(rank):
 
     if rank == "Epic":
      while True:
-      epicrank=pag.locateOnScreen("img/ranks/epic.png",region=region, confidence=0.96)
+      epicrank=pag.locateCenterOnScreen("img/ranks/epic.png",region=region, confidence=0.96)
       if epicrank:
        pag.alert(f"{rank} achieved!")
        return
@@ -193,7 +197,7 @@ def auto_rank(rank):
 
     elif rank == "Unique":
      while True:
-      uniquerank=pag.locateOnScreen("img/ranks/unique.png",region=region, confidence=0.96)
+      uniquerank=pag.locateCenterOnScreen("img/ranks/unique.png",region=region, confidence=0.96)
       if uniquerank:
        pag.alert(f"{rank} achieved!")
        return
@@ -202,7 +206,7 @@ def auto_rank(rank):
       
     elif rank == "Legendary":
      while True:
-      legendrank=pag.locateOnScreen("img/ranks/ld.png",region=region, confidence=0.96)
+      legendrank=pag.locateCenterOnScreen("img/ranks/ld.png",region=region, confidence=0.96)
       if legendrank:
        pag.alert(f"{rank} achieved!")
        return
@@ -211,13 +215,29 @@ def auto_rank(rank):
 
 # Starforce automation
 def auto_starforce(starforce_buttons):
-    while True and is_rolling:
-        for image_path in starforce_buttons:
-            image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=0.9)
-            if image_location is not None:
-                pag.click(image_location)
+    star_limit = False
 
+    def search_and_click(image_path):
+        nonlocal star_limit
+        image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=0.5)
+        if image_location is not None:
+            print(image_path)
+            if "10star.png" in image_path:
+                print("10 stars reached.")
+                star_limit = True  # Set the flag to stop other threads
+                return  # Quit the function
+            if star_limit is False:  # Check the flag before executing the click action
+                pag.click(image_location.x + 20, image_location.y)
 
+    threads = []
+    for image_path in starforce_buttons:
+        t = threading.Thread(target=search_and_click, args=(image_path,))
+        threads.append(t)
+        t.start()
+
+    # Wait for all threads to complete
+    for t in threads:
+        t.join()
 
 
 #########################################################################################
@@ -231,6 +251,8 @@ root.geometry("200x250")
 root.title("Practice")
 root.resizable(True, True)
 #root.lift
+
+## Definitions
 
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
 
@@ -254,14 +276,15 @@ def run_button_callback():
     global is_rolling
     is_rolling = True
     calculate_stat(
-        # rarity_dropdown.get(),
         attribute_dropdown.get(),
         int(total_value_dropdown.get())
     )
 
-
-
-## Definitions (functions)
+def autostarforce_callback():
+    print("starting auto sf")
+    global is_rolling
+    is_rolling = True
+    auto_starforce(starforce_buttons)
 
 # Update cooldown_duration delay
 def update_delay(*arg):
@@ -374,9 +397,23 @@ run_button = ctk.CTkButton(
     width=50,
     height=25
 )
+
 tierup.grid(row=7, column=0, columnspan=1, pady=5, sticky=tk.W+tk.E)
 run_button.grid(row=7, column=1, columnspan=1, pady=5)
 run_button_tooltip = Tooltip(run_button, "CTRL+R will also Run the Cuber.")
+
+# Auto Starforce
+auto_starforce_button = ctk.CTkButton(
+   root,
+   text="Auto SF",
+   command=autostarforce_callback,
+   fg_color=("#1C1C1C", "#1C1C1C"),
+   hover_color=("#424242", "#424242"),
+   width=50,
+   height=25,
+)
+auto_starforce_button.grid(row=7, column=2, columnspan=1, pady=5)
+auto_starforce_button_tooltip = Tooltip(auto_starforce_button, "Stop with Shift.")
 
 ## SpinBox Delay
 
@@ -406,6 +443,8 @@ delay_spinbox.grid(row=11, column=0, columnspan=2, pady=5)
 # keyboard.add_hotkey('CTRL', 'R', run_button_callback)  
 # pag.add_hotkey("ctrl", "e", tierup_button_callback)
 
+# Register hotkey 
+
 # Initialize the dropdowns
 gear_level_dropdown.set('Low')
 rarity_dropdown.set('Epic')
@@ -415,27 +454,3 @@ update_total_value_options()
 
 # Start the Tkinter event loop
 root.mainloop()
-
-"""import time
-import pyautogui
-
-def click_bingo_board():
-    # Adjust these coordinates based on the position of your bingo board on the screen
-    board_x = 500
-    board_y = 500
-    square_size = 100
-
-    # Click on each square of the bingo board
-    for row in range(5):
-        for col in range(5):
-            square_x = board_x + col * square_size
-            square_y = board_y + row * square_size
-            pyautogui.click(square_x, square_y)
-            time.sleep(0.1)  # Adjust the delay between clicks as needed
-
-def run_auto_bingo():
-    while True:
-        click_bingo_board()
-
-run_auto_bingo()
-"""
