@@ -2,38 +2,36 @@ import keyboard
 import pyautogui as pag
 from tkinter import *
 import time
-import random
-import customtkinter
-import os
-import datetime
-import numpy as np
 import subprocess
 from tkinter import ttk
 import tkinter as tk
-from tkinter import messagebox
 import customtkinter as ctk
 from PIL import Image
-#MooMoo addition
-import pytesseract
-import cv2
-import win32api, win32con
-from win32api import *
-import win32gui
+# addition to code
 import threading
 from itertools import combinations_with_replacement
+
+## Variables
+
 pag.PAUSE = 0.005
 region = (843, 383, 1065, 694)
 last_reroll_time = 0
 is_rolling = False  # Flag to indicate if the program is actively rolling
+star_limit = 0
 starforce_buttons = [
+    "img/function/enhance.png",
+    "img/function/sfok.png",
+    "img/function/enhance2.png",
+]
+starforce_conditions = [
    "img/function/10star.png",
-   "img/function/enhance.png",
-   "img/function/sfok.png",
-   "img/function/enhance2.png",
-   ]
+   "img/function/15star.png",
+   "img/function/disablestarcatch.png",
+   "img/function/enablestarcatch.png",
+]
 
 # Tooltips when hovering on buttons
-class Tooltip:
+class tooltip:
     def __init__(self, widget, text):
         self.widget = widget
         self.text = text
@@ -67,16 +65,6 @@ class Tooltip:
             self.tooltip.destroy()
             self.tooltip = None
 
-# Cancel Reroll and any future function that runs on loops
-def cancel_reroll():
-    global is_rolling
-    if is_rolling:
-        # If the program is rolling, abort rolling
-        is_rolling = False
-        print("Functions stopped.")
-        return False
-keyboard.add_hotkey('shift', cancel_reroll)
-
 """ OCR project that is incomplete
 # Path to tesseract executable, change this to your local path
 pytesseract.pytesseract.tesseract_cmd=r"C:\Program Files\Tesseract-OCR\tesseract.exe"
@@ -104,13 +92,12 @@ def select_region():
 
 # Reroll function for cubes
 def reroll(region):
-    global last_reroll_time
-    global is_rolling
+    global last_reroll_time, is_rolling
     current_time = None
 
     while is_rolling:
         current_time = time.time()
-        if current_time - last_reroll_time >= float(cooldown_duration.get()): # Only reroll if certain time has elapsed to prevent clicking too early
+        if current_time - last_reroll_time >= float(cooldown_duration.get()):
             print("Rerolling...")
             outofcube = pag.locateCenterOnScreen("img/function/outofcube.png", region=region, confidence=0.96)
             if outofcube:
@@ -121,16 +108,15 @@ def reroll(region):
             retry_button = pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.96)
             pag.click(retry_button, clicks=3)
             pag.press('enter', presses=3)
-            time.sleep(1.5)
+            time.sleep(1.2)
             last_reroll_time = current_time  # Update the last reroll time
             return True
-        
+
     return False
 
 # Calculate and read rolled potential lines
 def calculate_stat(attribute, total):
-    global last_reroll_time
-    global is_rolling
+    global last_reroll_time, is_rolling
     current_time = None
 
     attribute3_img = Image.open(f"img/{attribute}3.png")
@@ -214,49 +200,56 @@ def auto_rank(rank):
         return
 
 # Starforce automation
-def auto_starforce(starforce_buttons):
-    star_limit = False
+def auto_starforce(starforce_buttons, star_limit):
+    global is_rolling
+    while is_rolling:
+        for image_path in starforce_buttons:
+            image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=0.6)
+            if image_location is not None:
+                print(image_path)
+                if "10star.png" in image_path or "15star.png" in image_path:
+                    if star_limit is not None and int(star_limit) >= 0:
+                        print(f"Detected {star_limit} stars. Quitting the function.")
+                        is_rolling = False
+                        break
+                pag.click(image_location.x + 10, image_location.y + 5)
 
-    def search_and_click(image_path):
-        nonlocal star_limit
-        image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=0.5)
-        if image_location is not None:
-            print(image_path)
-            if "10star.png" in image_path:
-                print("10 stars reached.")
-                star_limit = True  # Set the flag to stop other threads
-                return  # Quit the function
-            if star_limit is False:  # Check the flag before executing the click action
-                pag.click(image_location.x + 20, image_location.y)
+def start_auto_starforce():
+    global is_rolling
+    # Reset the is_rolling flag to True
+    is_rolling = True
+    # Create a thread for the auto_starforce function
+    starforce_thread = threading.Thread(target=auto_starforce, args=(starforce_buttons, star_limit))
+    # Start the thread
+    starforce_thread.start()
 
-    threads = []
-    for image_path in starforce_buttons:
-        t = threading.Thread(target=search_and_click, args=(image_path,))
-        threads.append(t)
-        t.start()
+def hotkey_handler():
+    global is_rolling
+    while True:
+        if keyboard.is_pressed('shift') and is_rolling:
+            is_rolling = False
+            print("Rolling stopped.")
+        time.sleep(0.001)
 
-    # Wait for all threads to complete
-    for t in threads:
-        t.join()
-
+hotkey_thread = threading.Thread(target=hotkey_handler)
+hotkey_thread.daemon = True  # Set the thread as a daemon to automatically exit when the main thread exits
+hotkey_thread.start()
 
 #########################################################################################
 
 # Root mainframe GUI
 
-customtkinter.set_appearance_mode("dark")
+ctk.set_appearance_mode("dark")
 root = ctk.CTk()
 root.iconbitmap("img/icon/cubeicon.ico")
-root.geometry("200x250")
+root.geometry("250x270")
 root.title("Practice")
 root.resizable(True, True)
-#root.lift
 
-## Definitions
-
+## Variables
+star_limits = [0, 10, 15]  # Available star limits
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
-
-# Define the base possible values for each rarity and gear level
+# Base values for potential lines
 base_values = {
     'Low': {
         'Rare': [0, 3],
@@ -272,44 +265,8 @@ base_values = {
     }
 }
 
-def run_button_callback():
-    global is_rolling
-    is_rolling = True
-    calculate_stat(
-        attribute_dropdown.get(),
-        int(total_value_dropdown.get())
-    )
-
-def autostarforce_callback():
-    print("starting auto sf")
-    global is_rolling
-    is_rolling = True
-    auto_starforce(starforce_buttons)
-
-# Update cooldown_duration delay
-def update_delay(*arg):
-    updated_delay = cooldown_duration.get()
-    cooldown_duration.set(updated_delay)
-    print(f"Cooldown updated to {updated_delay}.")
-
-def tierup_button_callback():
-    auto_rank(
-        rarity_dropdown.get()
-    )
-
-# Event handler for gear level change
-def gear_level_changed(*args):
-    selected_option = gear_level_dropdown.get()
-    update_total_value_options()
-    print(f"Gear Level set to {selected_option}.")
-
-# Event handler for rarity change
-def rarity_changed(*args):
-    selected_option = rarity_dropdown.get()
-    update_total_value_options()
-    print(f"Rarity set to {selected_option}.")
-
-# Update the possible total values based on the selected gear level and rarity
+## Definitions
+# Update total dropdown value
 def update_total_value_options():
     gear_level = gear_level_dropdown.get()
     rarity = rarity_dropdown.get()
@@ -332,62 +289,115 @@ def update_total_value_options():
 
     # Update the options in the total value dropdown
     total_value_dropdown['values'] = possible_values
+# Set Starforce limit
+def set_star_limit(limit):
+    global star_limit
+    star_limit = int(limit)
 
+## Button callbacks
+# Run
+def run_button_callback():
+    global is_rolling
+    is_rolling = True
+    calculate_stat(
+        attribute_dropdown.get(),
+        int(total_value_dropdown.get())
+    )
 
-# Create a button on the GUI
+# Starforce
+def autostarforce_callback():
+    print("Starforcing started.")
+    global star_limit
+
+    while is_rolling:  # Loop while is_rolling is True
+        auto_starforce(starforce_buttons, star_limit)
+
+    print("Starforcing stopped.")
+
+# Tierup
+def tierup_button_callback():
+    auto_rank(
+        rarity_dropdown.get()
+    )
+
+## Event Handlers
+# Reroll delay
+def update_delay(*arg):
+    updated_delay = cooldown_duration.get()
+    cooldown_duration.set(updated_delay)
+    print(f"Cooldown updated to {updated_delay}.")
+# Gear level
+def gear_level_changed(*args):
+    selected_option = gear_level_dropdown.get()
+    update_total_value_options()
+    print(f"Gear Level set to {selected_option}.")
+# Rarity
+def rarity_changed(*args):
+    selected_option = rarity_dropdown.get()
+    update_total_value_options()
+    print(f"Rarity set to {selected_option}.")
+
+# Select Region button
 select_region_button=ttk.Button(root, text="Select Region", command=select_region)
-
-# Place the button on the GUI
 select_region_button.grid(row=0, column=0, columnspan=2, pady=5)
 
-label = tk.Label(root, text="Press Shift to STOP", bg="#242424", fg="white")
+# Stop hotkey tooltip
+label = tk.Label(root, text="Press Shift to STOP any process.", bg="#242424", fg="white")
 label.grid(row=1, column=0, columnspan=2, pady=5)
 
 ## Dropdown lists (Combobox)
 
-## Buttons
-
-# Create the gear level dropdown
+# Gear level dropdown
 gear_level_label = ttk.Label(root, text="Gear Level:")
 gear_level_label.grid(row=2, column=0)
 gear_level_dropdown = ttk.Combobox(root, values=['Low', 'High'], width=5)
-gear_level_dropdown.grid(row=2, column=1)
+gear_level_dropdown.grid(row=2, column=1, sticky="w")
 gear_level_dropdown.bind('<<ComboboxSelected>>', gear_level_changed)
-
-# Create the rarity dropdown
+# Rarity dropdown
 rarity_label = ttk.Label(root, text="Rarity:")
 rarity_label.grid(row=3, column=0)
 rarity_dropdown = ttk.Combobox(root, values=['Rare', 'Epic', 'Unique', 'Legendary'], width=9)
-rarity_dropdown.grid(row=3, column=1)
+rarity_dropdown.grid(row=3, column=1, sticky="w")
 rarity_dropdown.bind('<<ComboboxSelected>>', rarity_changed)
+# Attribute dropdown
+attribute_label = ttk.Label(root, text="Attribute:")
+attribute_label.grid(row=5, column=0)
+attribute_dropdown = ttk.Combobox(root, values=attribute_options, width=6)
+attribute_dropdown.grid(row=5, column=1, sticky="w")
+attribute_tooltip = tooltip(attribute_label, "Select the attribute.")
+# Create the total value dropdown
+total_value_label = ttk.Label(root, text="Total Value:")
+total_value_label.grid(row=6, column=0)
+total_value_dropdown = ttk.Combobox(root, width=3)
+total_value_dropdown.grid(row=6, column=1, sticky="w")
+total_value_tooltip = tooltip(total_value_label, "Select the total value.")
+# Star limit dropdown
+star_limit_label = ttk.Label(root, text="Star Limit:")
+star_limit_label.grid(row=9, column=0, padx=1, sticky="e")  # No horizontal gap, expand horizontally
+star_limit_dropdown = ttk.Combobox(root, values=star_limits, width=3)
+star_limit_dropdown.grid(row=9, column=1, padx=(5, 15), pady=(0, 0), sticky="w")
+star_limit_dropdown.bind("<<ComboboxSelected>>", lambda event: set_star_limit(star_limit_dropdown.get()))
+# Set dropdown default options
+gear_level_dropdown.set('Low')
+rarity_dropdown.set('Epic')
+star_limit_dropdown.set('0')
+attribute_dropdown.set('INT')
+total_value_dropdown.set('3')
 
-# Tier Up button
-tierup = customtkinter.CTkButton(
+## Create buttons
+# Tier Up
+tierup = ctk.CTkButton(
     root,
     text="Tier Up",
     command=tierup_button_callback,
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=50,
-    height=25
+    #height=25
 )
-tierup_tooltip = Tooltip(tierup, "Cube until the selected Rarity is obtained.")
-
-# Create the attribute dropdown
-attribute_label = ttk.Label(root, text="Attribute:")
-attribute_label.grid(row=5, column=0)
-attribute_dropdown = ttk.Combobox(root, values=attribute_options, width=6)
-attribute_dropdown.grid(row=5, column=1, sticky=tk.E)
-attribute_tooltip = Tooltip(attribute_label, "Select the attribute.")
-
-# Create the total value dropdown
-total_value_label = ttk.Label(root, text="Total Value:")
-total_value_label.grid(row=6, column=0)
-total_value_dropdown = ttk.Combobox(root, width=3)
-total_value_dropdown.grid(row=6, column=1, sticky=tk.E)
-total_value_tooltip = Tooltip(total_value_label, "Select the total value.")
-
-# Run button
+tierup.grid(row=7, column=0, padx=0) #place
+tierup_tooltip = tooltip(tierup, "Cube until the selected Rarity is obtained.")
+# Run
 run_button = ctk.CTkButton(
     root,
     text="RUN",
@@ -395,13 +405,10 @@ run_button = ctk.CTkButton(
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=50,
-    height=25
+    #height=25
 )
-
-tierup.grid(row=7, column=0, columnspan=1, pady=5, sticky=tk.W+tk.E)
-run_button.grid(row=7, column=1, columnspan=1, pady=5)
-run_button_tooltip = Tooltip(run_button, "CTRL+R will also Run the Cuber.")
-
+run_button.grid(row=7, column=1, padx=0, sticky="w") #place
+run_button_tooltip = tooltip(run_button, "CTRL+R will also Run the Cuber.")
 # Auto Starforce
 auto_starforce_button = ctk.CTkButton(
    root,
@@ -409,24 +416,21 @@ auto_starforce_button = ctk.CTkButton(
    command=autostarforce_callback,
    fg_color=("#1C1C1C", "#1C1C1C"),
    hover_color=("#424242", "#424242"),
-   width=50,
-   height=25,
+   width=5,
 )
-auto_starforce_button.grid(row=7, column=2, columnspan=1, pady=5)
-auto_starforce_button_tooltip = Tooltip(auto_starforce_button, "Stop with Shift.")
+auto_starforce_button.grid(row=9, column=1, columnspan=2, padx=(50,0), sticky="e")
+auto_starforce_button_tooltip = tooltip(auto_starforce_button, "Stop with Shift.")
 
-## SpinBox Delay
+## Delay of reroll
 
-# Create the cooldown duration variable
+# Create the cooldown duration variable and set trace (event handler)
 cooldown_duration = tk.StringVar()
 cooldown_duration.set("1.8")
 cooldown_duration.trace('w', update_delay)
-
 # Create the delay label
 delay_label = tk.Label(root, text="Adjust delay of reroll:")
-delay_label.grid(row=10, column=0, columnspan=2, pady=5)
-delay_label_tooltip = Tooltip(delay_label, "Increase the value if the script is rolling too early. The value is in seconds. 2 seconds should work universally.")
-
+delay_label.grid(row=10, column=0, padx=5, sticky="e")
+delay_label_tooltip = tooltip(delay_label, "Increase the value if the script is rolling too early. The value is in seconds. 2 seconds should work universally.")
 # Create the delay spinbox
 delay_spinbox = tk.Spinbox(
     root,
@@ -437,17 +441,12 @@ delay_spinbox = tk.Spinbox(
     textvariable=cooldown_duration,
     width=5
 )
-delay_spinbox.grid(row=11, column=0, columnspan=2, pady=5)
+delay_spinbox.grid(row=10, column=1, sticky="w")
 
 # Register the hotkey to activate the run button
-# keyboard.add_hotkey('CTRL', 'R', run_button_callback)  
+keyboard.add_hotkey('ctrl+r', run_button_callback)  
 # pag.add_hotkey("ctrl", "e", tierup_button_callback)
-
-# Register hotkey 
-
-# Initialize the dropdowns
-gear_level_dropdown.set('Low')
-rarity_dropdown.set('Epic')
+keyboard.add_hotkey('ctrl+s', start_auto_starforce)
 
 # Update the total value options initially
 update_total_value_options()
