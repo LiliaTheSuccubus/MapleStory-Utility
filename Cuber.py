@@ -121,6 +121,9 @@ def calculate_stat(attribute, total):
 
     attribute3_img = Image.open(f"img/{attribute}3.png")
     attribute6_img = Image.open(f"img/{attribute}6.png")
+    attribute9_img = Image.open(f"img/{attribute}9.png")
+    attribute12_img = Image.open(f"img/{attribute}12.png")
+
     count = 0
     lines = []  # Initialize a list to store the lines found
     matched_coordinates = set()  # Keep track of matched coordinates
@@ -134,6 +137,12 @@ def calculate_stat(attribute, total):
         attribute6_matches = list(
             pag.locateAllOnScreen(attribute6_img, region=region, confidence=0.97)
             )
+        attribute9_matches = list(
+            pag.locateAllOnScreen(attribute9_img, region=region, confidence=0.97)
+            )
+        attribute12_matches = list(
+            pag.locateAllOnScreen(attribute12_img, region=region, confidence=0.97)
+            )
 
         for match in attribute3_matches:
             if match not in matched_coordinates:
@@ -143,6 +152,16 @@ def calculate_stat(attribute, total):
         for match in attribute6_matches:
             if match not in matched_coordinates:
                 lines.append(6)
+                matched_coordinates.add(match)
+        
+        for match in attribute9_matches:
+            if match not in matched_coordinates:
+                lines.append(9)
+                matched_coordinates.add(match)
+
+        for match in attribute12_matches:
+            if match not in matched_coordinates:
+                lines.append(12)
                 matched_coordinates.add(match)
 
         count = sum(lines)
@@ -158,7 +177,7 @@ def calculate_stat(attribute, total):
             if current_time - last_reroll_time < float(cooldown_duration.get()):
                 print("Waiting for cooldown...")
                 time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-            pag.click(ok_button, clicks=3)
+            #pag.click(ok_button, clicks=3)
             pag.alert("Done.")
             return 
 
