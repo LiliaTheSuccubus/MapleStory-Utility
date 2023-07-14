@@ -114,15 +114,17 @@ def reroll(region):
 
     return False
 
-# Calculate and read rolled potential lines
+# Calculate Stat function for rolling potentials
 def calculate_stat(attribute, total):
     global last_reroll_time, is_rolling
     current_time = None
 
-    attribute3_img = Image.open(f"img/{attribute}3.png")
-    attribute6_img = Image.open(f"img/{attribute}6.png")
-    attribute9_img = Image.open(f"img/{attribute}9.png")
-    attribute12_img = Image.open(f"img/{attribute}12.png")
+    images = {
+        "attribute3": f"img/{attribute}3.png",
+        "attribute6": f"img/{attribute}6.png",
+        "attribute9": f"img/{attribute}9.png",
+        "attribute12": f"img/{attribute}12.png"
+    }
 
     count = 0
     lines = []  # Initialize a list to store the lines found
@@ -130,63 +132,46 @@ def calculate_stat(attribute, total):
 
     print("Calculate Function.")
 
-    while count < total and is_rolling:
-        attribute3_matches = list(
-            pag.locateAllOnScreen(attribute3_img, region=region, confidence=0.97)
-            )
-        attribute6_matches = list(
-            pag.locateAllOnScreen(attribute6_img, region=region, confidence=0.97)
-            )
-        attribute9_matches = list(
-            pag.locateAllOnScreen(attribute9_img, region=region, confidence=0.97)
-            )
-        attribute12_matches = list(
-            pag.locateAllOnScreen(attribute12_img, region=region, confidence=0.97)
-            )
+    for img_name, img_path in images.items():
+        try:
+            img = Image.open(img_path)
+        except FileNotFoundError:
+            print(f"Image not found: {img_path}")
+            continue
 
-        for match in attribute3_matches:
+        matches = list(
+            pag.locateAllOnScreen(img, region=region, confidence=0.97)
+        )
+        line_number = int(img_name.split("attribute")[-1])
+        for match in matches:
             if match not in matched_coordinates:
-                lines.append(3)
+                lines.append(line_number)
                 matched_coordinates.add(match)
 
-        for match in attribute6_matches:
-            if match not in matched_coordinates:
-                lines.append(6)
-                matched_coordinates.add(match)
-        
-        for match in attribute9_matches:
-            if match not in matched_coordinates:
-                lines.append(9)
-                matched_coordinates.add(match)
+    count = sum(lines)
 
-        for match in attribute12_matches:
-            if match not in matched_coordinates:
-                lines.append(12)
-                matched_coordinates.add(match)
+    print(f"Lines found: {lines}")
+    print(f"Current total: {count}")
 
-        count = sum(lines)
+    if count >= total: 
+        print(f"{attribute} {count} reached!")
+        is_rolling = False
+        ok_button = pag.locateCenterOnScreen("img/function/ok.png", region=region, confidence=0.96)
+        current_time = time.time()
+        if current_time - last_reroll_time < float(cooldown_duration.get()):
+            print("Waiting for cooldown...")
+            time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
+        #pag.click(ok_button, clicks=3)
+        pag.alert("Done.")
+        return 
 
-        print(f"Lines found: {lines}")
-        print(f"Current total: {count}")
+    print("Insufficient lines found, performing reroll...")
+    count = 0  # reset count to zero
+    lines = []  # Clear lines
+    matched_coordinates.clear()  # Clear matched coordinates
+    if not reroll(region):
+        return
 
-        if count >= total: 
-            print(f"{attribute} {count} reached!")
-            is_rolling = False
-            ok_button = pag.locateCenterOnScreen("img/function/ok.png", region=region, confidence=0.96)
-            current_time = time.time()
-            if current_time - last_reroll_time < float(cooldown_duration.get()):
-                print("Waiting for cooldown...")
-                time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-            #pag.click(ok_button, clicks=3)
-            pag.alert("Done.")
-            return 
-
-        print("Insufficient lines found, performing reroll...")
-        count = 0  # reset count to zero
-        lines = []  # Clear lines
-        matched_coordinates.clear()  # Clear matched coordinates
-        if not reroll(region):
-            return
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank(rank):
