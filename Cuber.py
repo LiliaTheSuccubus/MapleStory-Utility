@@ -24,6 +24,7 @@ starforce_buttons = [
     "img/function/enhance.png",
     "img/function/sfok.png",
     "img/function/enhance2.png",
+    "img/function/reveal.png",
 ]
 starforce_conditions = [
    "img/function/10star.png",
@@ -155,7 +156,6 @@ def reroll(region):
 def calculate_stat(attribute, total):
     print("Calculating")
     global last_reroll_time, is_rolling
-    current_time = None
 
     images = {
         "attribute3": f"img/{attribute}3.png",
@@ -203,7 +203,7 @@ def calculate_stat(attribute, total):
             #pag.click(ok_button, clicks=3)
             pag.moveTo(initial_position[0], initial_position[1])  # Move the cursor back to initial position
             pag.alert("Done.")
-            return 
+            return
 
         print("Insufficient lines found, performing reroll...")
         count = 0  # reset count to zero
