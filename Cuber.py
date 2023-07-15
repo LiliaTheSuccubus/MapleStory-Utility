@@ -22,6 +22,7 @@ starforce_buttons = [
     "img/function/enhance.png",
     "img/function/sfok.png",
     "img/function/enhance2.png",
+    "img/function/reveal.png",
 ]
 starforce_conditions = [
    "img/function/10star.png",
@@ -107,8 +108,8 @@ def reroll(region):
 
             retry_button = pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.96)
             pag.click(retry_button, clicks=3)
-            pag.press('enter', presses=3)
-            time.sleep(1.2)
+            pag.press('enter', presses=5)
+            time.sleep(1.3)
             last_reroll_time = current_time  # Update the last reroll time
             return True
 
@@ -122,7 +123,7 @@ def calculate_stat(attribute, total):
     attribute3_img = Image.open(f"img/{attribute}3.png")
     attribute6_img = Image.open(f"img/{attribute}6.png")
     attribute9_img = Image.open(f"img/{attribute}9.png")
-    attribute12_img = Image.open(f"img/{attribute}12.png")
+    attribute12_img = Image.open(f"img/{attribute}9.png")
 
     count = 0
     lines = []  # Initialize a list to store the lines found
