@@ -7,9 +7,11 @@ from tkinter import ttk
 import tkinter as tk
 import customtkinter as ctk
 from PIL import Image
-# addition to code
+# new imports due to revisions
 import threading
 from itertools import combinations_with_replacement
+import win32gui
+import psutil
 
 ## Variables
 
@@ -30,6 +32,32 @@ starforce_conditions = [
    "img/function/disablestarcatch.png",
    "img/function/enablestarcatch.png",
 ]
+
+## Defined Functions
+
+# Focus MapleStory - currently disfunctional, issue with win32gui module
+def focus_maplestory_window():
+    target_process_name = "MapleStory.exe"  # Replace with the actual MapleStory process name
+    target_window_handle = None
+
+    def callback(window_handle, process_list):
+        try:
+            process_id = win32gui.GetWindowThreadProcessId(window_handle)[1]
+            process = psutil.Process(process_id)
+            if process.name() == target_process_name:
+                process_list.append(window_handle)
+        except Exception as e:
+            print(f"Error occurred while enumerating windows: {e}")
+
+    window_handles = []
+    win32gui.EnumWindows(callback, window_handles)
+
+    if window_handles:
+        target_window_handle = window_handles[0]  # Select the first window found
+
+    if target_window_handle:
+        win32gui.SetForegroundWindow(target_window_handle)
+
 
 # Tooltips when hovering on buttons
 class tooltip:
@@ -80,6 +108,7 @@ def ocr(image_path):
 # Select Region for utility
 def select_region():
     global region
+
     result=subprocess.run(["python", "region_selector.py"], capture_output=True)
     region_str=result.stdout.decode().strip()
     if region_str.startswith("Selected region:"):
@@ -97,7 +126,12 @@ def reroll(region):
 
     while is_rolling:
         current_time = time.time()
-        if current_time - last_reroll_time >= float(cooldown_duration.get()):
+        retry_button = pag.locateCenterOnScreen(
+            "img/function/conemoretry.png",
+            region=region,
+            confidence=0.96,
+        )
+        if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
             print("Rerolling...")
             outofcube = pag.locateCenterOnScreen("img/function/outofcube.png", region=region, confidence=0.96)
             if outofcube:
@@ -105,63 +139,53 @@ def reroll(region):
                 is_rolling = False
                 return False
 
-            retry_button = pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.96)
+            # Store initial cursor position
+            initial_position = pag.position()
+
+            #focus_maplestory_window()
+            print(f"Button located at: {retry_button}. Clicking...")
             pag.click(retry_button, clicks=3)
             pag.press('enter', presses=5)
-            time.sleep(1.3)
+            pag.moveTo(initial_position[0], initial_position[1])  # Move the cursor back to initial position
             last_reroll_time = current_time  # Update the last reroll time
+            time.sleep(1.3)  # Delay to allow results to show
             return True
-
     return False
 
-# Calculate and read rolled potential lines
+# Calculate Stat function for rolling potentials
 def calculate_stat(attribute, total):
+    print("Calculating")
     global last_reroll_time, is_rolling
 
-    attribute3_img = Image.open(f"img/{attribute}3.png")
-    attribute6_img = Image.open(f"img/{attribute}6.png")
-    attribute9_img = Image.open(f"img/{attribute}9.png")
-    attribute12_img = Image.open(f"img/{attribute}12.png")
+    images = {
+        "attribute3": f"img/{attribute}3.png",
+        "attribute6": f"img/{attribute}6.png",
+        "attribute9": f"img/{attribute}9.png",
+        "attribute12": f"img/{attribute}12.png"
+    }
 
     count = 0
     lines = []  # Initialize a list to store the lines found
     matched_coordinates = set()  # Keep track of matched coordinates
 
     print("Calculate Function.")
-
+    initial_position = pag.position()
     while count < total and is_rolling:
-        attribute3_matches = list(
-            pag.locateAllOnScreen(attribute3_img, region=region, confidence=0.97)
-            )
-        attribute6_matches = list(
-            pag.locateAllOnScreen(attribute6_img, region=region, confidence=0.97)
-            )
-        attribute9_matches = list(
-            pag.locateAllOnScreen(attribute9_img, region=region, confidence=0.97)
-            )
-        attribute12_matches = list(
-            pag.locateAllOnScreen(attribute12_img, region=region, confidence=0.97)
-            )
+        for img_name, img_path in images.items():
+            try:
+                img = Image.open(img_path)
+            except FileNotFoundError:
+                print(f"Image not found: {img_path}")
+                continue
 
-        for match in attribute3_matches:
-            if match not in matched_coordinates:
-                lines.append(3)
-                matched_coordinates.add(match)
-
-        for match in attribute6_matches:
-            if match not in matched_coordinates:
-                lines.append(6)
-                matched_coordinates.add(match)
-        
-        for match in attribute9_matches:
-            if match not in matched_coordinates:
-                lines.append(9)
-                matched_coordinates.add(match)
-
-        for match in attribute12_matches:
-            if match not in matched_coordinates:
-                lines.append(12)
-                matched_coordinates.add(match)
+            matches = list(
+                pag.locateAllOnScreen(img, region=region, confidence=0.97)
+            )
+            line_number = int(img_name.split("attribute")[-1])
+            for match in matches:
+                if match not in matched_coordinates:
+                    lines.append(line_number)
+                    matched_coordinates.add(match)
 
         count = sum(lines)
 
@@ -177,6 +201,7 @@ def calculate_stat(attribute, total):
                 print("Waiting for cooldown...")
                 time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
             #pag.click(ok_button, clicks=3)
+            pag.moveTo(initial_position[0], initial_position[1])  # Move the cursor back to initial position
             pag.alert("Done.")
             return
 
@@ -184,6 +209,7 @@ def calculate_stat(attribute, total):
         count = 0  # reset count to zero
         lines = []  # Clear lines
         matched_coordinates.clear()  # Clear matched coordinates
+        is_rolling = True
         if not reroll(region):
             return
 
@@ -220,24 +246,38 @@ def auto_rank(rank):
 # Starforce automation
 def auto_starforce(starforce_buttons, star_limit):
     global is_rolling
+    initial_position = pag.position()
+
     while is_rolling:
         for image_path in starforce_buttons:
-            image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=0.6)
+            image_location = pag.locateCenterOnScreen(
+               image_path,
+               region=region,
+               confidence=0.6,
+               )
             if image_location is not None:
                 print(image_path)
                 if "10star.png" in image_path or "15star.png" in image_path:
                     if star_limit is not None and int(star_limit) >= 0:
-                        print(f"Detected {star_limit} stars. Quitting the function.")
+                        print(
+                           f"Detected {star_limit} stars. Quitting the function.")
                         is_rolling = False
                         break
-                pag.click(image_location.x + 10, image_location.y + 5)
+                pag.click(image_location)
+                pag.moveTo(
+                   initial_position[0],
+                   initial_position[1]
+                   )  # Move the cursor back to initial position
 
 def start_auto_starforce():
     global is_rolling
     # Reset the is_rolling flag to True
     is_rolling = True
     # Create a thread for the auto_starforce function
-    starforce_thread = threading.Thread(target=auto_starforce, args=(starforce_buttons, star_limit))
+    starforce_thread = threading.Thread(
+       target=auto_starforce,
+       args=(starforce_buttons, star_limit),
+       )
     # Start the thread
     starforce_thread.start()
 
@@ -391,7 +431,12 @@ total_value_dropdown.grid(row=6, column=1, sticky="w")
 total_value_tooltip = tooltip(total_value_label, "Select the total value.")
 # Star limit dropdown
 star_limit_label = ttk.Label(root, text="Star Limit:")
-star_limit_label.grid(row=9, column=0, padx=1, sticky="e")  # No horizontal gap, expand horizontally
+star_limit_label.grid(
+   row=9,
+   column=0,
+   padx=1,
+   sticky="e"
+   )  # No horizontal gap, expand horizontally
 star_limit_dropdown = ttk.Combobox(root, values=star_limits, width=3)
 star_limit_dropdown.grid(row=9, column=1, padx=(5, 15), pady=(0, 0), sticky="w")
 star_limit_dropdown.bind("<<ComboboxSelected>>", lambda event: set_star_limit(star_limit_dropdown.get()))
