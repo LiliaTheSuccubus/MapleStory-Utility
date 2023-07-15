@@ -94,7 +94,6 @@ def select_region():
 # Reroll function for cubes
 def reroll(region):
     global last_reroll_time, is_rolling
-    current_time = None
 
     while is_rolling:
         current_time = time.time()
@@ -108,7 +107,7 @@ def reroll(region):
 
             retry_button = pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.96)
             pag.click(retry_button, clicks=3)
-            pag.press('enter', presses=5)
+            pag.press('enter', presses=3)
             time.sleep(1.3)
             last_reroll_time = current_time  # Update the last reroll time
             return True
@@ -118,12 +117,11 @@ def reroll(region):
 # Calculate and read rolled potential lines
 def calculate_stat(attribute, total):
     global last_reroll_time, is_rolling
-    current_time = None
 
     attribute3_img = Image.open(f"img/{attribute}3.png")
     attribute6_img = Image.open(f"img/{attribute}6.png")
     attribute9_img = Image.open(f"img/{attribute}9.png")
-    attribute12_img = Image.open(f"img/{attribute}9.png")
+    attribute12_img = Image.open(f"img/{attribute}12.png")
 
     count = 0
     lines = []  # Initialize a list to store the lines found
