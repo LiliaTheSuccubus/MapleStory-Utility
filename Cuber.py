@@ -107,7 +107,7 @@ def reroll(region):
 
             retry_button = pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.96)
             pag.click(retry_button, clicks=3)
-            pag.press('enter', presses=3)
+            pag.press('enter', presses=5)
             time.sleep(1.3)
             last_reroll_time = current_time  # Update the last reroll time
             return True
@@ -178,7 +178,7 @@ def calculate_stat(attribute, total):
                 time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
             #pag.click(ok_button, clicks=3)
             pag.alert("Done.")
-            return 
+            return
 
         print("Insufficient lines found, performing reroll...")
         count = 0  # reset count to zero
