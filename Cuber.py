@@ -93,7 +93,6 @@ def select_region():
 # Reroll function for cubes
 def reroll(region):
     global last_reroll_time, is_rolling
-    current_time = None
 
     while is_rolling:
         current_time = time.time()
@@ -104,14 +103,21 @@ def reroll(region):
                 print("Out of cubes.")
                 is_rolling = False
                 return False
-
-            retry_button = pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.96)
-            pag.click(retry_button, clicks=3)
-            pag.press('enter', presses=3)
-            time.sleep(1.2)
-            last_reroll_time = current_time  # Update the last reroll time
-            return True
-
+            
+            retry_button = None
+            while retry_button is None:
+                retry_button = pag.locateCenterOnScreen(
+                   "img/function/conemoretry.png",
+                   region=region,
+                   confidence=0.96,
+                   )
+                print(f"Button located at: {retry_button}. Clicking...")
+                pag.click(retry_button, clicks=3)
+                pag.press('enter', presses=5)
+                print("Confirmed. Waiting for result...")
+                time.sleep(1.3)
+                last_reroll_time = current_time  # Update the last reroll time
+                return True
     return False
 
 # Calculate Stat function for rolling potentials
