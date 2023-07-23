@@ -3,8 +3,8 @@ import pyautogui as pag
 from tkinter import *
 import time
 import subprocess
-from tkinter import ttk
 import tkinter as tk
+from tkinter import ttk
 import customtkinter as ctk
 from PIL import Image
 # new imports due to revisions
@@ -12,11 +12,13 @@ import threading
 from itertools import combinations_with_replacement
 import win32gui
 import psutil
+import configparser
+import os
+import ast
 
-## Variables
+# Variables
 
 pag.PAUSE = 0.005
-region = (843, 383, 1065, 694)
 last_reroll_time = 0
 is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
@@ -27,17 +29,27 @@ starforce_buttons = [
     "img/function/reveal.png",
 ]
 starforce_conditions = [
-   "img/function/10star.png",
-   "img/function/15star.png",
-   "img/function/disablestarcatch.png",
-   "img/function/enablestarcatch.png",
+    "img/function/10star.png",
+    "img/function/15star.png",
+    "img/function/disablestarcatch.png",
+    "img/function/enablestarcatch.png",
 ]
 
-## Defined Functions
+# Defined Functions
+
+
+# Image locator + click
+def find_and_click_image(image_path, confidence):
+    image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
+    if image_location is not None and is_rolling:
+        pag.click(image_location)
+        return True
+    return False
 
 # Focus MapleStory - currently disfunctional, issue with win32gui module
 def focus_maplestory_window():
-    target_process_name = "MapleStory.exe"  # Replace with the actual MapleStory process name
+    # Replace with the actual MapleStory process name
+    target_process_name = "MapleStory.exe"
     target_window_handle = None
 
     def callback(window_handle, process_list):
@@ -53,11 +65,11 @@ def focus_maplestory_window():
     win32gui.EnumWindows(callback, window_handles)
 
     if window_handles:
-        target_window_handle = window_handles[0]  # Select the first window found
+        # Select the first window found
+        target_window_handle = window_handles[0]
 
     if target_window_handle:
         win32gui.SetForegroundWindow(target_window_handle)
-
 
 # Tooltips when hovering on buttons
 class tooltip:
@@ -86,7 +98,8 @@ class tooltip:
         self.tooltip.wm_overrideredirect(True)
         self.tooltip.wm_geometry(f"+{x}+{y}")
 
-        label = ttk.Label(self.tooltip, text=self.text, background="#FFFFE0", relief="solid", borderwidth=1, font=("Arial", 10), wraplength=tooltip_width)
+        label = ttk.Label(self.tooltip, text=self.text, background="#FFFFE0",
+                          relief="solid", borderwidth=1, font=("Arial", 10), wraplength=tooltip_width)
         label.pack()
 
     def hide_tooltip(self, event):
@@ -108,54 +121,80 @@ def ocr(image_path):
 # Select Region for utility
 def select_region():
     global region
-
-    result=subprocess.run(["python", "region_selector.py"], capture_output=True)
-    region_str=result.stdout.decode().strip()
+    print("Current region: ", region)
+    result = subprocess.run(
+        ["python", "region_selector.py"], capture_output=True)
+    region_str = result.stdout.decode().strip()
     if region_str.startswith("Selected region:"):
-        region_str=region_str.replace("Selected region:", "").strip()
-        region_str=region_str.replace("(", "").replace(")", "")  # Remove extra parenthesis
-        region=tuple(map(int, region_str.split(",")))
-        print(region)
+        region_str = region_str.replace("Selected region:", "").strip()
+        region_str = region_str.replace(
+            "(", "").replace(")", "")  # Remove extra parenthesis
+        region = tuple(map(int, region_str.split(",")))
+        print("New region: ", region)
+        save_settings()
+        print("Settings saved!")
     else:
         print("Region selection canceled. Keeping the old region values.")
     return region
 
 # Reroll function for cubes
-def reroll(region):
+def reroll():
     global last_reroll_time, is_rolling
 
     while is_rolling:
+        initial_position = pag.position()
         current_time = time.time()
         retry_button = pag.locateCenterOnScreen(
             "img/function/conemoretry.png",
             region=region,
-            confidence=0.96,
+            confidence=0.97,
         )
         if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
             print("Rerolling...")
-            outofcube = pag.locateCenterOnScreen("img/function/outofcube.png", region=region, confidence=0.96)
+            outofcube = pag.locateCenterOnScreen(
+                "img/function/outofcube.png",
+                region=region,
+                confidence=0.95,
+            )
             if outofcube:
                 print("Out of cubes.")
                 is_rolling = False
-                return False
+                return
 
-            # Store initial cursor position
-            initial_position = pag.position()
-
-            #focus_maplestory_window()
+            # focus_maplestory_window() - fix this function
             print(f"Button located at: {retry_button}. Clicking...")
             pag.click(retry_button, clicks=3)
             pag.press('enter', presses=5)
-            pag.moveTo(initial_position[0], initial_position[1])  # Move the cursor back to initial position
+            pag.moveTo(initial_position[0], initial_position[1])
             last_reroll_time = current_time  # Update the last reroll time
             time.sleep(1.3)  # Delay to allow results to show
-            return True
-    return False
+            return
+    return
+
+# Press Ok Button
+def press_ok_button():
+    global last_reroll_time, is_rolling
+    initial_position = pag.position()
+    ok_button = pag.locateCenterOnScreen(
+        "img/function/ok.png",
+        region=region,
+        confidence=0.96,
+    )
+    is_rolling = False #stop rolling
+    current_time = time.time()
+    # Check if AutoPressOk is enabled and if yes, click the "Ok" button
+    if auto_ok_state.get() == "on":
+        if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
+            time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
+        pag.click(ok_button, clicks=2)
+        pag.moveTo(initial_position[0], initial_position[1])
+    pag.alert("Done.")
+    return
+
 
 # Calculate Stat function for rolling potentials
 def calculate_stat(attribute, total):
     print("Calculating")
-    global last_reroll_time, is_rolling
 
     images = {
         "attribute3": f"img/{attribute}3.png",
@@ -169,7 +208,6 @@ def calculate_stat(attribute, total):
     matched_coordinates = set()  # Keep track of matched coordinates
 
     print("Calculate Function.")
-    initial_position = pag.position()
     while count < total and is_rolling:
         for img_name, img_path in images.items():
             try:
@@ -177,7 +215,6 @@ def calculate_stat(attribute, total):
             except FileNotFoundError:
                 print(f"Image not found: {img_path}")
                 continue
-
             matches = list(
                 pag.locateAllOnScreen(img, region=region, confidence=0.97)
             )
@@ -192,119 +229,150 @@ def calculate_stat(attribute, total):
         print(f"Lines found: {lines}")
         print(f"Current total: {count}")
 
-        if count >= total: 
+        if count >= total:
             print(f"{attribute} {count} reached!")
-            is_rolling = False
-            ok_button = pag.locateCenterOnScreen("img/function/ok.png", region=region, confidence=0.96)
-            current_time = time.time()
-            if current_time - last_reroll_time < float(cooldown_duration.get()):
-                print("Waiting for cooldown...")
-                time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-            #pag.click(ok_button, clicks=3)
-            pag.moveTo(initial_position[0], initial_position[1])  # Move the cursor back to initial position
-            pag.alert("Done.")
+            press_ok_button()
             return
 
         print("Insufficient lines found, performing reroll...")
         count = 0  # reset count to zero
         lines = []  # Clear lines
         matched_coordinates.clear()  # Clear matched coordinates
-        is_rolling = True
-        if not reroll(region):
-            return
+        reroll()
+
+
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank(rank):
+    print("Tiering up!")
 
-    if rank == "Epic":
-     while True:
-      epicrank=pag.locateCenterOnScreen("img/ranks/epic.png",region=region, confidence=0.96)
-      if epicrank:
-       pag.alert(f"{rank} achieved!")
-       return
-      if not reroll(region):
-        return
+    # Define a dictionary to map ranks to their respective image filenames
+    rank_images = {
+        "Epic": "img/ranks/epic.png",
+        "Unique": "img/ranks/unique.png",
+        "Legendary": "img/ranks/ld.png",
+    }
 
-    elif rank == "Unique":
-     while True:
-      uniquerank=pag.locateCenterOnScreen("img/ranks/unique.png",region=region, confidence=0.96)
-      if uniquerank:
-       pag.alert(f"{rank} achieved!")
-       return
-      if not reroll(region):
-        return
-      
-    elif rank == "Legendary":
-     while True:
-      legendrank=pag.locateCenterOnScreen("img/ranks/ld.png",region=region, confidence=0.96)
-      if legendrank:
-       pag.alert(f"{rank} achieved!")
-       return
-      if not reroll(region):
-        return
+    while is_rolling:
+        rank_image = rank_images.get(rank)
+        if rank_image:
+            while True:
+                # Locate the rank image
+                rank_location = pag.locateCenterOnScreen(
+                    rank_image,
+                    region=region,
+                    confidence=0.96
+                )
+
+                if rank_location:
+                    print(f"{rank} achieved!")
+                    press_ok_button()
+
+        print("Rank not matched. Rerolling...")
+        reroll()
 
 # Starforce automation
 def auto_starforce(starforce_buttons, star_limit):
     global is_rolling
-    initial_position = pag.position()
 
     while is_rolling:
+        initial_position = pag.position()
         for image_path in starforce_buttons:
             image_location = pag.locateCenterOnScreen(
-               image_path,
-               region=region,
-               confidence=0.6,
-               )
+                image_path,
+                region=region,
+                confidence=0.90,
+            )
+            if "ok_button.png" in image_path:
+                pag.click(image_location)
+                continue
+            if "enhance.png" in image_path:
+                find_and_click_image("img/function/sfok.png", confidence=.9)
+                continue
+
             if image_location is not None:
-                print(image_path)
                 if "10star.png" in image_path or "15star.png" in image_path:
                     if star_limit is not None and int(star_limit) >= 0:
                         print(
-                           f"Detected {star_limit} stars. Quitting the function.")
+                            f"Detected {star_limit} stars. Quitting the function.")
                         is_rolling = False
                         break
                 pag.click(image_location)
                 pag.moveTo(
-                   initial_position[0],
-                   initial_position[1]
-                   )  # Move the cursor back to initial position
+                    initial_position[0],
+                    initial_position[1]
+                )  # Move the cursor back to initial position
 
-def start_auto_starforce():
+def auto_craft():
+    print("Crafting...")
     global is_rolling
-    # Reset the is_rolling flag to True
     is_rolling = True
-    # Create a thread for the auto_starforce function
-    starforce_thread = threading.Thread(
-       target=auto_starforce,
-       args=(starforce_buttons, star_limit),
-       )
-    # Start the thread
-    starforce_thread.start()
+    initial_position = pag.position()
 
+    while is_rolling:
+        # Find and click the "Craft" button
+        print("Waiting for craft button...")
+        while not find_and_click_image("img/function/craft.png",confidence=.97) and is_rolling:
+            return
+
+        # Find and click the "Ok" button
+        print("Confirming craft!")
+        while not find_and_click_image("img/function/craftok.png",confidence=.97) and is_rolling:
+            return
+
+        # Find and click the "Ok2" button
+        print("Crafting in progress...")
+        while not find_and_click_image("img/function/craftok2.png",confidence=.97) and is_rolling:
+            return
+        pag.moveTo(
+            initial_position[0],
+            initial_position[1]
+        )
+
+
+
+# Function to check for the Shift key and update the is_rolling flag
 def hotkey_handler():
     global is_rolling
     while True:
-        if keyboard.is_pressed('shift') and is_rolling:
+        if is_rolling and keyboard.is_pressed('shift'):
             is_rolling = False
             print("Rolling stopped.")
-        time.sleep(0.001)
+        time.sleep(0.1)
+    
 
+# Create a thread for the hotkey handling
 hotkey_thread = threading.Thread(target=hotkey_handler)
-hotkey_thread.daemon = True  # Set the thread as a daemon to automatically exit when the main thread exits
+# Set the thread as a daemon to automatically exit when the main thread exits
+hotkey_thread.daemon = True
 hotkey_thread.start()
 
 #########################################################################################
 
-# Root mainframe GUI
+# class App(ctk.CTk):
+#     def __init__(self):
+#         super().__init__()
 
+#         self.title("Maple Util")
+#         self.geometry("250x350")
+#         self.grid_columnconfigure((0,1,2), weight=1)
+#         self.resizable(True,True)
+#         self._set_appearance_mode("dark")
+#         self.iconbitmap("img/icon/cubeicon.ico")
+
+
+# Root mainframe GU
 ctk.set_appearance_mode("dark")
 root = ctk.CTk()
 root.iconbitmap("img/icon/cubeicon.ico")
-root.geometry("250x270")
-root.title("Practice")
+root.geometry("300x350")
+root.title("Maple Util")
 root.resizable(True, True)
 
-## Variables
+########### Variables
+
+global_padding = 5
+auto_ok_state = ctk.StringVar(value="off")
 star_limits = [0, 10, 15]  # Available star limits
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
 # Base values for potential lines
@@ -322,10 +390,106 @@ base_values = {
         'Legendary': [0, 10, 13]
     }
 }
+cooldown_duration = tk.StringVar()
+cooldown_duration.set("1.8")
+############### Definitions for GUI
 
-## Definitions
+# Save settings function (updated to avoid overwriting the settings file)
+def save_settings():
+    config = configparser.ConfigParser()
+
+    # Check if the settings file exists
+    if os.path.exists('settings.ini'):
+        # Read existing settings from the file
+        config.read('settings.ini')
+
+    # Update the config with the new settings
+    config['General'] = {
+        'CooldownDuration': cooldown_duration.get(),
+        'AutoOKState': auto_ok_state.get(),
+        'GearLevelSetting': gear_level_dropdown.get(),
+        'RaritySetting': rarity_dropdown.get(),
+        'StarLimitSetting': star_limit_dropdown.get(),
+        'StatSetting': attribute_dropdown.get(),
+        'TotalValueSelected': total_value_dropdown.get(),
+        'RegionArea': region
+    }
+
+    # Write the updated settings back to the file
+    with open('settings.ini', 'w') as configfile:
+        config.write(configfile)    
+
+# Load settings function (updated to avoid overwriting the settings file)
+def load_settings():
+    global region, auto_ok_state, cooldown_duration  # Add these lines to indicate that we want to modify the global variables
+
+    config = configparser.ConfigParser()
+
+    # Check if the settings file exists
+    if os.path.exists('settings.ini'):
+        # Read existing settings from the file
+        config.read('settings.ini')
+
+    if 'General' not in config:
+        # Set default values if the 'General' section is missing
+        config['General'] = {
+            'CooldownDuration': '1.8',
+            'AutoOKState': 'off',
+            'GearLevelSetting': 'Low',
+            'RaritySetting': 'Epic',
+            'StarLimitSetting': '0',
+            'StatSetting': 'INT',
+            'TotalValueSelected': '3',
+            'RegionArea': '(843, 383, 1065, 694)'
+        }
+
+    # Load settings from the configuration file or use default values
+    cooldown_duration_value = config['General'].getfloat('CooldownDuration', 1.8)
+    auto_ok_state.set(config['General'].get('AutoOKState', 'off'))
+    gear_level = config['General'].get('GearLevelSetting', 'Low')
+    rarity = config['General'].get('RaritySetting', 'Epic')
+    star_limit = config['General'].getint('StarLimitSetting', 0)
+    attribute = config['General'].get('StatSetting', 'INT')
+    total_value = config['General'].get('TotalValueSelected', '3')
+    region_str = config['General'].get('RegionArea', '(843, 383, 1065, 694)')
+    try:
+        region = ast.literal_eval(region_str)
+    except (ValueError, SyntaxError):
+        print("Error: Failed to parse region from settings. Using default region.")
+        region = (843, 383, 1065, 694)
+
+    # Set the default values for the dropdowns if not found in the settings
+    if gear_level not in ['Low', 'High']:
+        gear_level = 'Low'
+    if rarity not in ['Rare', 'Epic', 'Unique', 'Legendary']:
+        rarity = 'Epic'
+
+    cooldown_duration.set(cooldown_duration_value)
+    gear_level_dropdown.set(gear_level)
+    rarity_dropdown.set(rarity)
+    star_limit_dropdown.set(star_limit)
+    attribute_dropdown.set(attribute)
+    total_value_dropdown.set(total_value)
+    update_total_value_option()
+
+
+
+def checkbox_event():
+    print("Automatically close cube UI set to: ", auto_ok_state.get())
+    save_settings()
+
+
+# Label function
+def label(text):
+    label = ctk.CTkLabel(
+        root,
+        text=text,
+        bg_color="#242424",
+    )
+    return label
+
 # Update total dropdown value
-def update_total_value_options():
+def update_total_value_option():
     gear_level = gear_level_dropdown.get()
     rarity = rarity_dropdown.get()
 
@@ -347,119 +511,151 @@ def update_total_value_options():
 
     # Update the options in the total value dropdown
     total_value_dropdown['values'] = possible_values
+    if possible_values:
+        total_value_dropdown.set(possible_values[0])
+
 # Set Starforce limit
 def set_star_limit(limit):
     global star_limit
     star_limit = int(limit)
+    save_settings()
 
-## Button callbacks
+# Button callbacks
 # Run
 def run_button_callback():
     global is_rolling
     is_rolling = True
-    calculate_stat(
-        attribute_dropdown.get(),
-        int(total_value_dropdown.get())
+
+    while is_rolling:
+        calculate_stat(
+            attribute_dropdown.get(),
+            int(total_value_dropdown.get())
+        )
+
+def auto_starforce_callback():
+    print("Beginning Starforcing... Press Shift to Stop.")
+    global is_rolling
+    is_rolling = True
+
+    starforce_thread = threading.Thread(
+        target=auto_starforce,
+        args=(starforce_buttons, star_limit),
     )
+    # Start the thread
+    starforce_thread.start()
 
-# Starforce
-def autostarforce_callback():
-    print("Starforcing started.")
-    global star_limit
+# tier_up
+def tier_up_button_callback():
+    print("Tiering up!")
+    global is_rolling
+    is_rolling = True
 
-    while is_rolling:  # Loop while is_rolling is True
-        auto_starforce(starforce_buttons, star_limit)
-
-    print("Starforcing stopped.")
-
-# Tierup
-def tierup_button_callback():
     auto_rank(
         rarity_dropdown.get()
     )
 
-## Event Handlers
+# Event Handlers
 # Reroll delay
 def update_delay(*arg):
     updated_delay = cooldown_duration.get()
     cooldown_duration.set(updated_delay)
     print(f"Cooldown updated to {updated_delay}.")
+    save_settings()
 # Gear level
 def gear_level_changed(*args):
     selected_option = gear_level_dropdown.get()
-    update_total_value_options()
+    update_total_value_option()
     print(f"Gear Level set to {selected_option}.")
-# Rarity
+    save_settings()
+# rarity
 def rarity_changed(*args):
     selected_option = rarity_dropdown.get()
-    update_total_value_options()
+    update_total_value_option()
     print(f"Rarity set to {selected_option}.")
+    save_settings()
 
-# Select Region button
-select_region_button=ttk.Button(root, text="Select Region", command=select_region)
-select_region_button.grid(row=0, column=0, columnspan=2, pady=5)
-
-# Stop hotkey tooltip
-label = tk.Label(root, text="Press Shift to STOP any process.", bg="#242424", fg="white")
-label.grid(row=1, column=0, columnspan=2, pady=5)
-
-## Dropdown lists (Combobox)
+# Dropdown lists (Combobox)
 
 # Gear level dropdown
-gear_level_label = ttk.Label(root, text="Gear Level:")
+gear_level_label = label("Gear Level:")
 gear_level_label.grid(row=2, column=0)
 gear_level_dropdown = ttk.Combobox(root, values=['Low', 'High'], width=5)
 gear_level_dropdown.grid(row=2, column=1, sticky="w")
 gear_level_dropdown.bind('<<ComboboxSelected>>', gear_level_changed)
-# Rarity dropdown
-rarity_label = ttk.Label(root, text="Rarity:")
+# rarity dropdown
+rarity_label = label("rarity:")
 rarity_label.grid(row=3, column=0)
 rarity_dropdown = ttk.Combobox(root, values=['Rare', 'Epic', 'Unique', 'Legendary'], width=9)
 rarity_dropdown.grid(row=3, column=1, sticky="w")
 rarity_dropdown.bind('<<ComboboxSelected>>', rarity_changed)
-# Attribute dropdown
-attribute_label = ttk.Label(root, text="Attribute:")
+# attribute dropdown
+attribute_label = label("attribute:")
 attribute_label.grid(row=5, column=0)
 attribute_dropdown = ttk.Combobox(root, values=attribute_options, width=6)
 attribute_dropdown.grid(row=5, column=1, sticky="w")
-attribute_tooltip = tooltip(attribute_label, "Select the attribute.")
+
 # Create the total value dropdown
-total_value_label = ttk.Label(root, text="Total Value:")
+total_value_label = label("Total Value:")
 total_value_label.grid(row=6, column=0)
 total_value_dropdown = ttk.Combobox(root, width=3)
 total_value_dropdown.grid(row=6, column=1, sticky="w")
-total_value_tooltip = tooltip(total_value_label, "Select the total value.")
-# Star limit dropdown
-star_limit_label = ttk.Label(root, text="Star Limit:")
-star_limit_label.grid(
-   row=9,
-   column=0,
-   padx=1,
-   sticky="e"
-   )  # No horizontal gap, expand horizontally
-star_limit_dropdown = ttk.Combobox(root, values=star_limits, width=3)
-star_limit_dropdown.grid(row=9, column=1, padx=(5, 15), pady=(0, 0), sticky="w")
-star_limit_dropdown.bind("<<ComboboxSelected>>", lambda event: set_star_limit(star_limit_dropdown.get()))
-# Set dropdown default options
-gear_level_dropdown.set('Low')
-rarity_dropdown.set('Epic')
-star_limit_dropdown.set('0')
-attribute_dropdown.set('INT')
-total_value_dropdown.set('3')
 
-## Create buttons
+# Star limit dropdown
+star_limit_label = label("Star Limit:")
+star_limit_label.grid(
+    row=9,
+    column=0,
+    #padx=global_padding,
+    #sticky="e"
+)  # No horizontal gap, expand horizontally
+star_limit_dropdown = ttk.Combobox(root, values=star_limits, width=3)
+star_limit_dropdown.grid(
+    row=9, column=1,
+    #padx=global_padding, pady=global_padding,
+    sticky="w"
+    )
+star_limit_dropdown.bind("<<ComboboxSelected>>", lambda event: set_star_limit(star_limit_dropdown.get()))
+# Auto Starforce button
+auto_starforce_button = ctk.CTkButton(
+    root,
+    text="Auto SF",
+    command=auto_starforce_callback,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+)
+auto_starforce_button.grid(
+    row=9, column=1,
+    padx=50,
+    sticky="e"
+)
+
+# Create buttons
+# Select Region button
+select_region_button = ctk.CTkButton(
+    root, text="Select Region",
+    command=select_region,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+    )
+select_region_button.grid(row=0, column=0, pady=5)
+# Stop hotkey tip
+stop_key_label = label("Press Shift to STOP any process.")
+stop_key_label.grid(row=1, column=0, columnspan=2, pady=5)
+
 # Tier Up
-tierup = ctk.CTkButton(
+tier_up_button = ctk.CTkButton(
     root,
     text="Tier Up",
-    command=tierup_button_callback,
+    command=tier_up_button_callback,
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=50,
-    #height=25
+    # height=25
 )
-tierup.grid(row=7, column=0, padx=0) #place
-tierup_tooltip = tooltip(tierup, "Cube until the selected Rarity is obtained.")
+tier_up_button.grid(row=7, column=0)  # place
+
 # Run
 run_button = ctk.CTkButton(
     root,
@@ -468,32 +664,26 @@ run_button = ctk.CTkButton(
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=50,
-    #height=25
+    # height=25
 )
-run_button.grid(row=7, column=1, padx=0, sticky="w") #place
-run_button_tooltip = tooltip(run_button, "CTRL+R will also Run the Cuber.")
-# Auto Starforce
-auto_starforce_button = ctk.CTkButton(
-   root,
-   text="Auto SF",
-   command=autostarforce_callback,
-   fg_color=("#1C1C1C", "#1C1C1C"),
-   hover_color=("#424242", "#424242"),
-   width=5,
+run_button.grid(row=7, column=1, padx=0)  # place
+
+#auto_craft
+auto_craft_button = ctk.CTkButton(
+    root,
+    text="Auto Craft",
+    command=auto_craft,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
 )
-auto_starforce_button.grid(row=9, column=1, columnspan=2, padx=(50,0), sticky="e")
-auto_starforce_button_tooltip = tooltip(auto_starforce_button, "Stop with Shift.")
+auto_craft_button.grid(
+    row=0, column=1)
 
-## Delay of reroll
-
-# Create the cooldown duration variable and set trace (event handler)
-cooldown_duration = tk.StringVar()
-cooldown_duration.set("1.8")
-cooldown_duration.trace('w', update_delay)
+# Delay of reroll
 # Create the delay label
-delay_label = tk.Label(root, text="Adjust delay of reroll:")
-delay_label.grid(row=10, column=0, padx=5, sticky="e")
-delay_label_tooltip = tooltip(delay_label, "Increase the value if the script is rolling too early. The value is in seconds. 2 seconds should work universally.")
+delay_label = label("Adjust delay of reroll:")
+delay_label.grid(row=10, column=0, padx=global_padding, pady=global_padding, sticky="e")
 # Create the delay spinbox
 delay_spinbox = tk.Spinbox(
     root,
@@ -506,13 +696,46 @@ delay_spinbox = tk.Spinbox(
 )
 delay_spinbox.grid(row=10, column=1, sticky="w")
 
+auto_ok_checkbox = ctk.CTkCheckBox(
+    root, text="Auto OK",
+    command=checkbox_event,
+    variable=auto_ok_state,
+    onvalue="on",
+    offvalue="off"
+    )
+auto_ok_checkbox.grid(row=7, column=2, padx=0)
+
 # Register the hotkey to activate the run button
-keyboard.add_hotkey('ctrl+r', run_button_callback)  
-# pag.add_hotkey("ctrl", "e", tierup_button_callback)
-keyboard.add_hotkey('ctrl+s', start_auto_starforce)
+keyboard.add_hotkey('ctrl+r', run_button_callback)
+keyboard.add_hotkey('ctrl+s', auto_starforce_callback)
 
+
+
+# Create a dictionary to store widgets and their tooltips
+tooltips = {
+    auto_craft_button: "Select the item you would like to craft "
+                        "and click this button. It will automatically craft whenever "
+                        "it detects the green crafting button. Stop with Shift",
+    run_button: "CTRL+R will also run the cuber",
+    auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift",
+    total_value_label: "Select the total value",
+    attribute_label: "Select the attribute",
+    tier_up_button: "Cube until the selected rarity is obtained",
+    delay_label: "Increase the value if the script is rolling too early. "
+                "The value is in seconds. "
+                "2 seconds should work universally.",
+    auto_ok_checkbox: "Tick this box if you want the program to automatically "
+    "click OK when finished cubing."
+}
+
+# TOOLTIPS
+for name, text in tooltips.items():
+    tooltip(name, text)
+
+load_settings()
+cooldown_duration.trace('w', update_delay)
 # Update the total value options initially
-update_total_value_options()
-
-# Start the Tkinter event loop
+update_total_value_option()
 root.mainloop()
+# app = App()
+# app.mainloop()
