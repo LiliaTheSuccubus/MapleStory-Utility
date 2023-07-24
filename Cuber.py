@@ -285,6 +285,7 @@ def auto_starforce():
 
     while is_rolling:
         for image_path in starforce_buttons:
+
             try:
                 initial_position = pag.position()
                 while find_and_click_image(image_path, confidence=0.90) and is_rolling:
