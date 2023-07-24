@@ -25,8 +25,6 @@ star_limit = 0
 starforce_buttons = [
     "img/function/enhance.png",
     "img/function/sfok.png",
-    "img/function/enhance2.png",
-    "img/function/reveal.png",
 ]
 starforce_conditions = [
     "img/function/10star.png",
@@ -149,20 +147,18 @@ def reroll():
             region=region,
             confidence=0.97,
         )
-        if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
-            print("Rerolling...")
-            outofcube = pag.locateCenterOnScreen(
+        outofcube = pag.locateCenterOnScreen(
                 "img/function/outofcube.png",
                 region=region,
                 confidence=0.95,
             )
-            if outofcube:
-                print("Out of cubes.")
-                is_rolling = False
-                return
-
+        if outofcube:
+            print("Out of cubes.")
+            is_rolling = False
+            return
+        if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
+            print("Rerolling...")
             # focus_maplestory_window() - fix this function
-            print(f"Button located at: {retry_button}. Clicking...")
             pag.click(retry_button, clicks=3)
             pag.press('enter', presses=5)
             pag.moveTo(initial_position[0], initial_position[1])
@@ -186,15 +182,20 @@ def press_ok_button():
     if auto_ok_state.get() == "on":
         if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
             time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-        pag.click(ok_button, clicks=2)
+        pag.click(ok_button, clicks=1)
         pag.moveTo(initial_position[0], initial_position[1])
     pag.alert("Done.")
     return
 
 
 # Calculate Stat function for rolling potentials
-def calculate_stat(attribute, total):
-    print("Calculating")
+def calculate_stat():
+    global is_rolling
+    is_rolling = True
+    attribute = attribute_dropdown.get()
+    total = int(total_value_dropdown.get())
+    print("Attribute and total set to: ", {total}, {attribute})
+    save_settings()
 
     images = {
         "attribute3": f"img/{attribute}3.png",
@@ -243,7 +244,10 @@ def calculate_stat(attribute, total):
 
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
-def auto_rank(rank):
+def auto_rank():
+    global is_rolling
+    is_rolling = True
+    rank = rarity_dropdown.get()
     print("Tiering up!")
 
     # Define a dictionary to map ranks to their respective image filenames
@@ -272,36 +276,22 @@ def auto_rank(rank):
         reroll()
 
 # Starforce automation
-def auto_starforce(starforce_buttons, star_limit):
+def auto_starforce():
+    print("Beginning Starforcing... Press Shift to Stop.")
     global is_rolling
+    is_rolling = True
+    star_limit = int(star_limit_dropdown.get())
+    print("Starforcing!")
 
     while is_rolling:
-        initial_position = pag.position()
         for image_path in starforce_buttons:
-            image_location = pag.locateCenterOnScreen(
-                image_path,
-                region=region,
-                confidence=0.90,
-            )
-            if "ok_button.png" in image_path:
-                pag.click(image_location)
-                continue
-            if "enhance.png" in image_path:
-                find_and_click_image("img/function/sfok.png", confidence=.9)
-                continue
-
-            if image_location is not None:
-                if "10star.png" in image_path or "15star.png" in image_path:
-                    if star_limit is not None and int(star_limit) >= 0:
-                        print(
-                            f"Detected {star_limit} stars. Quitting the function.")
-                        is_rolling = False
-                        break
-                pag.click(image_location)
-                pag.moveTo(
-                    initial_position[0],
-                    initial_position[1]
-                )  # Move the cursor back to initial position
+            try:
+                initial_position = pag.position()
+                while find_and_click_image(image_path, confidence=0.90) and is_rolling:
+                    initial_position = pag.position()
+                    continue
+            finally:
+                pag.moveTo(initial_position[0], initial_position[1])
 
 def auto_craft():
     print("Crafting...")
@@ -329,7 +319,13 @@ def auto_craft():
             initial_position[1]
         )
 
-
+def spam_click():
+    global is_rolling
+    is_rolling = True
+    print("clickin time")
+    while is_rolling:
+        pag.click()
+        time.sleep(0.01)
 
 # Function to check for the Shift key and update the is_rolling flag
 def hotkey_handler():
@@ -339,7 +335,6 @@ def hotkey_handler():
             is_rolling = False
             print("Rolling stopped.")
         time.sleep(0.1)
-    
 
 # Create a thread for the hotkey handling
 hotkey_thread = threading.Thread(target=hotkey_handler)
@@ -412,12 +407,13 @@ def save_settings():
         'StarLimitSetting': star_limit_dropdown.get(),
         'StatSetting': attribute_dropdown.get(),
         'TotalValueSelected': total_value_dropdown.get(),
-        'RegionArea': region
+        'RegionArea': region,
+        'WindowDimension': root.geometry()
     }
 
     # Write the updated settings back to the file
     with open('settings.ini', 'w') as configfile:
-        config.write(configfile)    
+        config.write(configfile)
 
 # Load settings function (updated to avoid overwriting the settings file)
 def load_settings():
@@ -440,7 +436,8 @@ def load_settings():
             'StarLimitSetting': '0',
             'StatSetting': 'INT',
             'TotalValueSelected': '3',
-            'RegionArea': '(843, 383, 1065, 694)'
+            'RegionArea': '(843, 383, 1065, 694)',
+            'WindowDimension': '800x600'  # Default window dimension (modify as needed)
         }
 
     # Load settings from the configuration file or use default values
@@ -471,6 +468,10 @@ def load_settings():
     attribute_dropdown.set(attribute)
     total_value_dropdown.set(total_value)
     update_total_value_option()
+
+    # Set the window dimension (geometry) using root.geometry()
+    window_dimension = config['General'].get('WindowDimension', '800x600')
+    root.geometry(window_dimension)
 
 
 
@@ -514,46 +515,6 @@ def update_total_value_option():
     if possible_values:
         total_value_dropdown.set(possible_values[0])
 
-# Set Starforce limit
-def set_star_limit(limit):
-    global star_limit
-    star_limit = int(limit)
-    save_settings()
-
-# Button callbacks
-# Run
-def run_button_callback():
-    global is_rolling
-    is_rolling = True
-
-    while is_rolling:
-        calculate_stat(
-            attribute_dropdown.get(),
-            int(total_value_dropdown.get())
-        )
-
-def auto_starforce_callback():
-    print("Beginning Starforcing... Press Shift to Stop.")
-    global is_rolling
-    is_rolling = True
-
-    starforce_thread = threading.Thread(
-        target=auto_starforce,
-        args=(starforce_buttons, star_limit),
-    )
-    # Start the thread
-    starforce_thread.start()
-
-# tier_up
-def tier_up_button_callback():
-    print("Tiering up!")
-    global is_rolling
-    is_rolling = True
-
-    auto_rank(
-        rarity_dropdown.get()
-    )
-
 # Event Handlers
 # Reroll delay
 def update_delay(*arg):
@@ -593,12 +554,16 @@ attribute_label = label("attribute:")
 attribute_label.grid(row=5, column=0)
 attribute_dropdown = ttk.Combobox(root, values=attribute_options, width=6)
 attribute_dropdown.grid(row=5, column=1, sticky="w")
+attribute_dropdown.bind('<<ComboboxSelected>>', lambda event: save_settings())
+
 
 # Create the total value dropdown
 total_value_label = label("Total Value:")
 total_value_label.grid(row=6, column=0)
 total_value_dropdown = ttk.Combobox(root, width=3)
 total_value_dropdown.grid(row=6, column=1, sticky="w")
+total_value_dropdown.bind('<<ComboboxSelected>>', lambda event: save_settings())
+
 
 # Star limit dropdown
 star_limit_label = label("Star Limit:")
@@ -614,12 +579,13 @@ star_limit_dropdown.grid(
     #padx=global_padding, pady=global_padding,
     sticky="w"
     )
-star_limit_dropdown.bind("<<ComboboxSelected>>", lambda event: set_star_limit(star_limit_dropdown.get()))
+star_limit_dropdown.bind('<<ComboboxSelected>>', lambda event: save_settings())
+
 # Auto Starforce button
 auto_starforce_button = ctk.CTkButton(
     root,
     text="Auto SF",
-    command=auto_starforce_callback,
+    command=auto_starforce,
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=5,
@@ -648,7 +614,7 @@ stop_key_label.grid(row=1, column=0, columnspan=2, pady=5)
 tier_up_button = ctk.CTkButton(
     root,
     text="Tier Up",
-    command=tier_up_button_callback,
+    command=auto_rank,
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=50,
@@ -660,13 +626,13 @@ tier_up_button.grid(row=7, column=0)  # place
 run_button = ctk.CTkButton(
     root,
     text="RUN",
-    command=run_button_callback,
+    command=calculate_stat,
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=50,
     # height=25
 )
-run_button.grid(row=7, column=1, padx=0)  # place
+run_button.grid(row=7, column=1, padx=0, sticky="w")  # place
 
 #auto_craft
 auto_craft_button = ctk.CTkButton(
@@ -703,12 +669,12 @@ auto_ok_checkbox = ctk.CTkCheckBox(
     onvalue="on",
     offvalue="off"
     )
-auto_ok_checkbox.grid(row=7, column=2, padx=0)
+auto_ok_checkbox.grid(row=7, column=1, padx=0, sticky="e")
 
 # Register the hotkey to activate the run button
-keyboard.add_hotkey('ctrl+r', run_button_callback)
-keyboard.add_hotkey('ctrl+s', auto_starforce_callback)
-
+keyboard.add_hotkey('ctrl+r', calculate_stat)
+keyboard.add_hotkey('ctrl+s', auto_starforce)
+keyboard.add_hotkey('ctrl+d', spam_click)
 
 
 # Create a dictionary to store widgets and their tooltips
@@ -717,7 +683,7 @@ tooltips = {
                         "and click this button. It will automatically craft whenever "
                         "it detects the green crafting button. Stop with Shift",
     run_button: "CTRL+R will also run the cuber",
-    auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift",
+    auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift. CTRL+D will spam click instead",
     total_value_label: "Select the total value",
     attribute_label: "Select the attribute",
     tier_up_button: "Cube until the selected rarity is obtained",
@@ -734,8 +700,7 @@ for name, text in tooltips.items():
 
 load_settings()
 cooldown_duration.trace('w', update_delay)
-# Update the total value options initially
-update_total_value_option()
+root.bind('<Configure>', lambda event: save_settings())
 root.mainloop()
 # app = App()
 # app.mainloop()
