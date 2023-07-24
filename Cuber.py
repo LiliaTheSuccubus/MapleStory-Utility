@@ -276,32 +276,30 @@ def auto_starforce(starforce_buttons, star_limit):
     global is_rolling
 
     while is_rolling:
-        initial_position = pag.position()
         for image_path in starforce_buttons:
-            image_location = pag.locateCenterOnScreen(
+            initial_position = pag.position()
+            image_location = pag.locateOnScreen(
                 image_path,
                 region=region,
                 confidence=0.90,
             )
-            if "ok_button.png" in image_path:
+            if "sfok.png" in image_path:
                 pag.click(image_location)
-                continue
             if "enhance.png" in image_path:
-                find_and_click_image("img/function/sfok.png", confidence=.9)
-                continue
-
+                #find_and_click_image("img/function/sfok.png", confidence=.9)
+                pag.click(image_location)
             if image_location is not None:
-                if "10star.png" in image_path or "15star.png" in image_path:
-                    if star_limit is not None and int(star_limit) >= 0:
-                        print(
-                            f"Detected {star_limit} stars. Quitting the function.")
-                        is_rolling = False
-                        break
                 pag.click(image_location)
                 pag.moveTo(
                     initial_position[0],
-                    initial_position[1]
-                )  # Move the cursor back to initial position
+                    initial_position[1])
+            # if image_location is not None:
+            #     if "10star.png" in image_path or "15star.png" in image_path:
+            #         if star_limit is not None and int(star_limit) >= 0:
+            #             print(
+            #                 f"Detected {star_limit} stars. Quitting the function.")
+            #             is_rolling = False
+            #             break
 
 def auto_craft():
     print("Crafting...")
