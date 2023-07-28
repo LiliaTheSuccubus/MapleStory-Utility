@@ -38,14 +38,14 @@ starforce_conditions = [
 
 # Image locator + click
 def find_and_click_image(image_path, confidence):
-    image_location = pag.locateOnScreen(image_path, region=region, confidence=confidence)
-    initial_position = pag.position()
+    image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
+    # initial_position = pag.position()
     if image_location is not None and is_rolling:
-        pag.click(image_location, clicks=1)
-        pag.moveTo(
-            initial_position[0],
-            initial_position[1]
-        )
+        pag.click(image_location, clicks=2)
+        # pag.moveTo(
+        #     initial_position[0],
+        #     initial_position[1]
+        # )
         return True
     return False
 
@@ -143,15 +143,21 @@ def select_region():
 # Reroll function for cubes
 def reroll():
     global last_reroll_time, is_rolling
-
+    
     while is_rolling:
         initial_position = pag.position()
         current_time = time.time()
         retry_button = pag.locateOnScreen(
             "img/function/conemoretry.png",
             region=region,
-            confidence=0.97,
+            confidence=0.8,
         )
+        if  retry_button is None:
+            print("Retry button not found, pressing enter and recalculating.")
+            pag.press('enter', presses=2)
+            current_time = time.time()
+            last_reroll_time = current_time
+            return
         outofcube = pag.locateCenterOnScreen(
                 "img/function/outofcube.png",
                 region=region,
@@ -164,8 +170,9 @@ def reroll():
         if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
             print("Rerolling...")
             # focus_maplestory_window() - fix this function
-            pag.click(retry_button, clicks=3)
+            pag.click(retry_button, clicks=5)
             pag.press('enter', presses=5)
+            time.sleep(0.01)
             pag.moveTo(initial_position[0], initial_position[1])
             last_reroll_time = current_time  # Update the last reroll time
             time.sleep(1.3)  # Delay to allow results to show
@@ -176,18 +183,14 @@ def reroll():
 def press_ok_button():
     global last_reroll_time, is_rolling
     initial_position = pag.position()
-    ok_button = pag.locateCenterOnScreen(
-        "img/function/ok.png",
-        region=region,
-        confidence=0.96,
-    )
     is_rolling = False #stop rolling
     current_time = time.time()
     # Check if AutoPressOk is enabled and if yes, click the "Ok" button
     if auto_ok_state.get() == "on":
         if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
             time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-        pag.click(ok_button, clicks=1)
+        find_and_click_image("img/functio/ok.png",confidence=.7)
+        time.sleep(0.01)
         pag.moveTo(initial_position[0], initial_position[1])
     pag.alert("Done.")
     return
@@ -265,9 +268,6 @@ def auto_rank():
     while is_rolling:
         rank_image = rank_images.get(rank)
         if rank_image:
-            while True:
-                # Locate the rank image
-                print(rank, rank_image)
                 rank_location = pag.locateOnScreen(
                     rank_image,
                     region=region,
@@ -291,9 +291,23 @@ def auto_starforce():
     star_limit = int(star_limit_dropdown.get())
     print("Starforcing!")
 
+    Buttons = {
+        "Enhance": "img/function/enhance.png",
+        "SFOk": "img/function/sfok.png",
+        "Ok": "img/function/ok.png",
+    }
+
+    action_order = ["Enhance", "SFOk", "Ok"]
+
     while is_rolling:
-        for image_path in starforce_buttons:
-                find_and_click_image(image_path, confidence=0.90)
+        # initial_position = pag.position()
+        for action in action_order:
+            image_path = Buttons[action]
+            find_and_click_image(image_path, confidence=0.5)
+    # pag.moveTo(
+    #     initial_position[0],
+    #     initial_position[1]
+    # )
 
 def auto_craft():
     print("Crafting...")
@@ -304,6 +318,18 @@ def auto_craft():
         find_and_click_image("img/function/craft.png",confidence=.9)
         find_and_click_image("img/function/craftok.png",confidence=.9)
         find_and_click_image("img/function/craftok2.png",confidence=.9)
+
+def reveal():
+    global is_rolling
+    is_rolling = True
+
+    while is_rolling:
+        initial_position = pag.position()
+        if find_and_click_image("img/function/reveal.png",confidence=.9):
+            pag.moveTo(
+                initial_position[0],
+                initial_position[1]
+            )
 
 def spam_click():
     global is_rolling
@@ -578,6 +604,21 @@ auto_starforce_button = ctk.CTkButton(
 )
 auto_starforce_button.grid(
     row=9, column=1,
+    padx=50,
+    sticky="e"
+)
+
+# Reveal button
+reveal_button = ctk.CTkButton(
+    root,
+    text="Reveal",
+    command=reveal,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+)
+reveal_button.grid(
+    row=10, column=1,
     padx=50,
     sticky="e"
 )
