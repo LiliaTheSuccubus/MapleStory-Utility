@@ -38,9 +38,14 @@ starforce_conditions = [
 
 # Image locator + click
 def find_and_click_image(image_path, confidence):
-    image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
+    image_location = pag.locateOnScreen(image_path, region=region, confidence=confidence)
+    initial_position = pag.position()
     if image_location is not None and is_rolling:
-        pag.click(image_location)
+        pag.click(image_location, clicks=1)
+        pag.moveTo(
+            initial_position[0],
+            initial_position[1]
+        )
         return True
     return False
 
@@ -142,7 +147,7 @@ def reroll():
     while is_rolling:
         initial_position = pag.position()
         current_time = time.time()
-        retry_button = pag.locateCenterOnScreen(
+        retry_button = pag.locateOnScreen(
             "img/function/conemoretry.png",
             region=region,
             confidence=0.97,
@@ -262,18 +267,21 @@ def auto_rank():
         if rank_image:
             while True:
                 # Locate the rank image
-                rank_location = pag.locateCenterOnScreen(
+                print(rank, rank_image)
+                rank_location = pag.locateOnScreen(
                     rank_image,
                     region=region,
-                    confidence=0.96
+                    confidence=0.90
                 )
 
                 if rank_location:
                     print(f"{rank} achieved!")
+                    is_rolling = False
                     press_ok_button()
-
-        print("Rank not matched. Rerolling...")
-        reroll()
+                    break
+                else:
+                    print("Rank not matched.")
+                    reroll()
 
 # Starforce automation
 def auto_starforce():
@@ -285,40 +293,17 @@ def auto_starforce():
 
     while is_rolling:
         for image_path in starforce_buttons:
-
-            try:
-                initial_position = pag.position()
-                while find_and_click_image(image_path, confidence=0.90) and is_rolling:
-                    initial_position = pag.position()
-                    continue
-            finally:
-                pag.moveTo(initial_position[0], initial_position[1])
+                find_and_click_image(image_path, confidence=0.90)
 
 def auto_craft():
     print("Crafting...")
     global is_rolling
     is_rolling = True
-    initial_position = pag.position()
 
     while is_rolling:
-        # Find and click the "Craft" button
-        print("Waiting for craft button...")
-        while not find_and_click_image("img/function/craft.png",confidence=.97) and is_rolling:
-            return
-
-        # Find and click the "Ok" button
-        print("Confirming craft!")
-        while not find_and_click_image("img/function/craftok.png",confidence=.97) and is_rolling:
-            return
-
-        # Find and click the "Ok2" button
-        print("Crafting in progress...")
-        while not find_and_click_image("img/function/craftok2.png",confidence=.97) and is_rolling:
-            return
-        pag.moveTo(
-            initial_position[0],
-            initial_position[1]
-        )
+        find_and_click_image("img/function/craft.png",confidence=.9)
+        find_and_click_image("img/function/craftok.png",confidence=.9)
+        find_and_click_image("img/function/craftok2.png",confidence=.9)
 
 def spam_click():
     global is_rolling
