@@ -38,14 +38,14 @@ starforce_conditions = [
 
 # Image locator + click
 def find_and_click_image(image_path, confidence):
-    image_location = pag.locateOnScreen(image_path, region=region, confidence=confidence)
-    initial_position = pag.position()
+    image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
+    # initial_position = pag.position()
     if image_location is not None and is_rolling:
-        pag.click(image_location, clicks=1)
-        pag.moveTo(
-            initial_position[0],
-            initial_position[1]
-        )
+        pag.click(image_location, clicks=2)
+        # pag.moveTo(
+        #     initial_position[0],
+        #     initial_position[1]
+        # )
         return True
     return False
 
@@ -291,9 +291,24 @@ def auto_starforce():
     star_limit = int(star_limit_dropdown.get())
     print("Starforcing!")
 
+    Buttons = {
+        "Enhance": "img/function/enhance.png",
+        "SFOk": "img/function/sfok.png",
+        "Ok": "img/function/ok.png",
+        "Reveal": "img/function/reveal.png"
+    }
+
+    action_order = ["Enhance", "SFOk", "Ok"]
+
     while is_rolling:
-        for image_path in starforce_buttons:
-                find_and_click_image(image_path, confidence=0.90)
+        # initial_position = pag.position()
+        for action in action_order:
+            image_path = Buttons[action]
+            find_and_click_image(image_path, confidence=0.9)
+    # pag.moveTo(
+    #     initial_position[0],
+    #     initial_position[1]
+    # )
 
 def auto_craft():
     print("Crafting...")
@@ -304,6 +319,18 @@ def auto_craft():
         find_and_click_image("img/function/craft.png",confidence=.9)
         find_and_click_image("img/function/craftok.png",confidence=.9)
         find_and_click_image("img/function/craftok2.png",confidence=.9)
+
+def reveal():
+    global is_rolling
+    is_rolling = True
+
+    while is_rolling:
+        initial_position = pag.position()
+        if find_and_click_image("img/function/reveal.png",confidence=.9):
+            pag.moveTo(
+                initial_position[0],
+                initial_position[1]
+            )
 
 def spam_click():
     global is_rolling
@@ -578,6 +605,21 @@ auto_starforce_button = ctk.CTkButton(
 )
 auto_starforce_button.grid(
     row=9, column=1,
+    padx=50,
+    sticky="e"
+)
+
+# Reveal button
+reveal_button = ctk.CTkButton(
+    root,
+    text="Reveal",
+    command=reveal,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+)
+reveal_button.grid(
+    row=10, column=1,
     padx=50,
     sticky="e"
 )
