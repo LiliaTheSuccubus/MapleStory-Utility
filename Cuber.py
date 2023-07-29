@@ -39,13 +39,14 @@ starforce_conditions = [
 # Image locator + click
 def find_and_click_image(image_path, confidence):
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
-    # initial_position = pag.position()
+    initial_position = pag.position()
     if image_location is not None and is_rolling:
         pag.click(image_location, clicks=2)
-        # pag.moveTo(
-        #     initial_position[0],
-        #     initial_position[1]
-        # )
+        time.sleep(.2)
+        pag.moveTo(
+            initial_position[0],
+            initial_position[1]
+        )
         return True
     return False
 
