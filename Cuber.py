@@ -189,7 +189,7 @@ def press_ok_button():
     if auto_ok_state.get() == "on":
         if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
             time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-        find_and_click_image("img/functio/ok.png",confidence=.7)
+        find_and_click_image("img/function/ok.png",confidence=.7)
         time.sleep(0.01)
         pag.moveTo(initial_position[0], initial_position[1])
     pag.alert("Done.")
