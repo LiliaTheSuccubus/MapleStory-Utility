@@ -1,3 +1,6 @@
+#############################################
+# Imports
+#############################################
 import keyboard
 import pyautogui as pag
 from tkinter import *
@@ -15,9 +18,10 @@ import psutil
 import configparser
 import os
 import ast
-
+#############################################
 # Variables
-
+#############################################
+initial_position = None
 pag.PAUSE = 0.005
 last_reroll_time = 0
 is_rolling = False  # Flag to indicate if the program is actively rolling
@@ -32,23 +36,82 @@ starforce_conditions = [
     "img/function/disablestarcatch.png",
     "img/function/enablestarcatch.png",
 ]
+#############################################
+############### Defined Functions
+#############################################
 
-# Defined Functions
+# Reset cursor position
+def reset_cursor():
+    pag.moveTo(initial_position[0], initial_position[1])
 
+# Update cursor position
+def update_cursor():
+    global initial_position
+    initial_position = pag.position()
 
+# Press Ok Button
+def press_ok_button():
+    global last_reroll_time
+    current_time = time.time()
+    # Check if AutoPressOk is enabled and if yes, click the "Ok" button
+    if auto_ok_state.get() == "on":
+        #print("Auto OK is on. Pressing Okay. Debug message to check if function is being performed.")
+        if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
+            time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
+        find_and_click_image("img/function/ok.png",confidence=.9)
+        print("Automatically closed cube UI because AutoOK set to On.")
+    return
 # Image locator + click
 def find_and_click_image(image_path, confidence):
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
-    initial_position = pag.position()
-    if image_location is not None and is_rolling:
-        pag.click(image_location, clicks=2)
+    update_cursor()
+    if image_location is not None:
+        #print("clicking!")
+        pag.click(image_location, clicks=1)
         time.sleep(.2)
-        pag.moveTo(
-            initial_position[0],
-            initial_position[1]
-        )
+        reset_cursor()
         return True
     return False
+# Reroll function for cubes
+def reroll():
+    global last_reroll_time, is_rolling
+    
+    while is_rolling:
+        current_time = time.time()
+        retry_button = pag.locateOnScreen(
+            "img/function/conemoretry.png",
+            region=region,
+            confidence=0.8,
+        )
+        outofcube = pag.locateCenterOnScreen(
+                "img/function/outofcube.png",
+                region=region,
+                confidence=0.97,
+            )
+        if outofcube:
+            print("Out of cubes.")
+            press_ok_button()
+            is_rolling=False
+            return
+        else:
+            if  retry_button is None:
+                print("Retry button not found, pressing enter and recalculating.")
+                pag.press('enter', presses=2)
+                current_time = time.time()
+                last_reroll_time = current_time
+                return
+            if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
+                print("Rerolling...")
+                update_cursor()
+                # focus_maplestory_window() - fix this function
+                pag.click(retry_button, clicks=5)
+                pag.press('enter', presses=5)
+                time.sleep(0.01)
+                reset_cursor()
+                last_reroll_time = current_time  # Update the last reroll time
+                time.sleep(1.3)  # Delay to allow results to show
+                return
+    return
 
 # Focus MapleStory - currently disfunctional, issue with win32gui module
 def focus_maplestory_window():
@@ -141,62 +204,6 @@ def select_region():
         print("Region selection canceled. Keeping the old region values.")
     return region
 
-# Reroll function for cubes
-def reroll():
-    global last_reroll_time, is_rolling
-    
-    while is_rolling:
-        initial_position = pag.position()
-        current_time = time.time()
-        retry_button = pag.locateOnScreen(
-            "img/function/conemoretry.png",
-            region=region,
-            confidence=0.8,
-        )
-        if  retry_button is None:
-            print("Retry button not found, pressing enter and recalculating.")
-            pag.press('enter', presses=2)
-            current_time = time.time()
-            last_reroll_time = current_time
-            return
-        outofcube = pag.locateCenterOnScreen(
-                "img/function/outofcube.png",
-                region=region,
-                confidence=0.95,
-            )
-        if outofcube:
-            print("Out of cubes.")
-            is_rolling = False
-            return
-        if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
-            print("Rerolling...")
-            # focus_maplestory_window() - fix this function
-            pag.click(retry_button, clicks=5)
-            pag.press('enter', presses=5)
-            time.sleep(0.01)
-            pag.moveTo(initial_position[0], initial_position[1])
-            last_reroll_time = current_time  # Update the last reroll time
-            time.sleep(1.3)  # Delay to allow results to show
-            return
-    return
-
-# Press Ok Button
-def press_ok_button():
-    global last_reroll_time, is_rolling
-    initial_position = pag.position()
-    is_rolling = False #stop rolling
-    current_time = time.time()
-    # Check if AutoPressOk is enabled and if yes, click the "Ok" button
-    if auto_ok_state.get() == "on":
-        if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
-            time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-        find_and_click_image("img/function/ok.png",confidence=.7)
-        time.sleep(0.01)
-        pag.moveTo(initial_position[0], initial_position[1])
-    pag.alert("Done.")
-    return
-
-
 # Calculate Stat function for rolling potentials
 def calculate_stat():
     global is_rolling
@@ -250,8 +257,6 @@ def calculate_stat():
         matched_coordinates.clear()  # Clear matched coordinates
         reroll()
 
-
-
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank():
     global is_rolling
@@ -301,44 +306,41 @@ def auto_starforce():
     action_order = ["Enhance", "SFOk", "Ok"]
 
     while is_rolling:
-        # initial_position = pag.position()
         for action in action_order:
             image_path = Buttons[action]
-            find_and_click_image(image_path, confidence=0.5)
-    # pag.moveTo(
-    #     initial_position[0],
-    #     initial_position[1]
-    # )
+            find_and_click_image(image_path, confidence=0.7)
+            #Add movement code to uncover buttons?
 
 def auto_craft():
     print("Crafting...")
     global is_rolling
     is_rolling = True
+    update_cursor()
 
     while is_rolling:
         find_and_click_image("img/function/craft.png",confidence=.9)
         find_and_click_image("img/function/craftok.png",confidence=.9)
         find_and_click_image("img/function/craftok2.png",confidence=.9)
+        reset_cursor()
 
+# Auto reveal function for familiars
 def reveal():
     global is_rolling
     is_rolling = True
 
     while is_rolling:
-        initial_position = pag.position()
-        if find_and_click_image("img/function/reveal.png",confidence=.9):
-            pag.moveTo(
-                initial_position[0],
-                initial_position[1]
-            )
+        find_and_click_image("img/function/reveal.png",confidence=.9)
 
+# Spam click function
 def spam_click():
     global is_rolling
     is_rolling = True
+    update_cursor()
     print("clickin time")
     while is_rolling:
         pag.click()
         time.sleep(0.01)
+    reset_cursor()
 
 # Function to check for the Shift key and update the is_rolling flag
 def hotkey_handler():
