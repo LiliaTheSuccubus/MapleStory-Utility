@@ -384,7 +384,12 @@ root.resizable(True, True)
 global_padding = 5
 auto_ok_state = ctk.StringVar(value="off")
 star_limits = [0, 10, 15]  # Available star limits
+gear_level_options = ['Low', 'High']
+rank_options = ['Rare', 'Epic', 'Unique', 'Legendary']
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
+
+non_attribute_options = ['ItemDrop', 'MesoObtain', 'SkillCD']
+
 # Base values for potential lines
 base_values = {
     'Low': {
@@ -471,9 +476,9 @@ def load_settings():
         region = (843, 383, 1065, 694)
 
     # Set the default values for the dropdowns if not found in the settings
-    if gear_level not in ['Low', 'High']:
+    if gear_level not in gear_level_options:
         gear_level = 'Low'
-    if rarity not in ['Rare', 'Epic', 'Unique', 'Legendary']:
+    if rarity not in rank_options:
         rarity = 'Epic'
 
     cooldown_duration.set(cooldown_duration_value)
@@ -519,10 +524,8 @@ def update_total_value_option():
         totals = [sum(combination) for combination in combinations]
         possible_values.extend(total for total in totals if total != 0)
 
-    # Remove duplicates
+    # Remove duplicates + Order the values from least to greatest
     possible_values = list(set(possible_values))
-
-    # Order the values from least to greatest
     possible_values = sorted(possible_values)
 
     # Update the options in the total value dropdown
@@ -530,101 +533,90 @@ def update_total_value_option():
     if possible_values:
         total_value_dropdown.set(possible_values[0])
 
+###########################################
 # Event Handlers
-# Reroll delay
-def update_delay(*arg):
+###########################################
+# Gear level
+def gear_level_changed(*args):
+    gear_level_selected = gear_level_dropdown.get()
+    update_total_value_option()
+    print(f"Gear Level set to {gear_level_selected}.")
+    save_settings()
+# rarity
+def rarity_changed(*args):
+    rarity_selected = rarity_dropdown.get()
+    update_total_value_option()
+    print(f"Rarity set to {rarity_selected}.")
+    save_settings()
+# attribute
+def attribute_changed(*args):
+    attribute_selected = attribute_dropdown.get()
+    print(f"Attribute set to {attribute_selected}.")
+    save_settings()
+# total value
+def total_value_changed(*args):
+    total_value_selected = total_value_dropdown.get()
+    print(f"Total Value set to {total_value_selected}.")
+    save_settings()
+# star limit
+def star_limit_changed(*args):
+    star_limit_selected = star_limit_dropdown.get()
+    print(f"Total Value set to {star_limit_selected}.")
+    save_settings()
+# reroll delay
+def update_delay(*args):
     updated_delay = cooldown_duration.get()
     cooldown_duration.set(updated_delay)
     print(f"Cooldown updated to {updated_delay}.")
     save_settings()
-# Gear level
-def gear_level_changed(*args):
-    selected_option = gear_level_dropdown.get()
-    update_total_value_option()
-    print(f"Gear Level set to {selected_option}.")
-    save_settings()
-# rarity
-def rarity_changed(*args):
-    selected_option = rarity_dropdown.get()
-    update_total_value_option()
-    print(f"Rarity set to {selected_option}.")
-    save_settings()
 
-# Dropdown lists (Combobox)
+################
+# Dropdown lists (Combobox/spinbox)
+###############
+
 
 # Gear level dropdown
-gear_level_label = label("Gear Level:")
+gear_level_label=label("Gear Level:")
 gear_level_label.grid(row=2, column=0)
-gear_level_dropdown = ttk.Combobox(root, values=['Low', 'High'], width=5)
-gear_level_dropdown.grid(row=2, column=1, sticky="w")
-gear_level_dropdown.bind('<<ComboboxSelected>>', gear_level_changed)
+gear_level_dropdown=ttk.Combobox(
+root,
+values=gear_level_options,
+width=5)
+gear_level_dropdown.grid(
+row=2,column=1,sticky="w")
+gear_level_dropdown.bind('<<ComboboxSelected>>',gear_level_changed)
 # rarity dropdown
-rarity_label = label("rarity:")
-rarity_label.grid(row=3, column=0)
-rarity_dropdown = ttk.Combobox(root, values=['Rare', 'Epic', 'Unique', 'Legendary'], width=9)
-rarity_dropdown.grid(row=3, column=1, sticky="w")
+rarity_label=label("rarity:")
+rarity_label.grid(row=3,column=0)
+rarity_dropdown=ttk.Combobox(root,values=rank_options,width=9)
+rarity_dropdown.grid(row=3,column=1,sticky="w")
 rarity_dropdown.bind('<<ComboboxSelected>>', rarity_changed)
 # attribute dropdown
-attribute_label = label("attribute:")
-attribute_label.grid(row=5, column=0)
-attribute_dropdown = ttk.Combobox(root, values=attribute_options, width=6)
-attribute_dropdown.grid(row=5, column=1, sticky="w")
-attribute_dropdown.bind('<<ComboboxSelected>>', lambda event: save_settings())
-
-
+attribute_label=label("attribute:")
+attribute_label.grid(row=5,column=0)
+attribute_dropdown=ttk.Combobox(root,values=attribute_options,width=6)
+attribute_dropdown.grid(row=5,column=1,sticky="w")
+attribute_dropdown.bind('<<ComboboxSelected>>',lambda event:attribute_changed())
 # Create the total value dropdown
-total_value_label = label("Total Value:")
-total_value_label.grid(row=6, column=0)
-total_value_dropdown = ttk.Combobox(root, width=3)
-total_value_dropdown.grid(row=6, column=1, sticky="w")
-total_value_dropdown.bind('<<ComboboxSelected>>', lambda event: save_settings())
-
-
+total_value_label=label("Total Value:")
+total_value_label.grid(row=6,column=0)
+total_value_dropdown=ttk.Combobox(root,width=3)
+total_value_dropdown.grid(row=6,column=1,sticky="w")
+total_value_dropdown.bind('<<ComboboxSelected>>',lambda event:total_value_changed())
 # Star limit dropdown
-star_limit_label = label("Star Limit:")
-star_limit_label.grid(
-    row=9,
-    column=0,
-    #padx=global_padding,
-    #sticky="e"
-)  # No horizontal gap, expand horizontally
-star_limit_dropdown = ttk.Combobox(root, values=star_limits, width=3)
-star_limit_dropdown.grid(
-    row=9, column=1,
-    #padx=global_padding, pady=global_padding,
-    sticky="w"
-    )
-star_limit_dropdown.bind('<<ComboboxSelected>>', lambda event: save_settings())
+star_limit_label=label("Star Limit:")
+star_limit_label.grid(row=9,column=0)
+star_limit_dropdown=ttk.Combobox(root,values=star_limits,width=3)
+star_limit_dropdown.grid(row=9,    column=1,    sticky="w")
+star_limit_dropdown.bind('<<ComboboxSelected>>', lambda event: star_limit_changed())
+# Create the reroll delay dropdown
+delay_label=label("Adjust delay of reroll:")
+delay_label.grid(row=10,    column=0,    padx=global_padding,    pady=global_padding,    sticky="e")
+delay_spinbox=tk.Spinbox(root,    from_=0.0,    to=10.0,    increment=0.1,format="%.1f",    textvariable=cooldown_duration, width=5)
+delay_spinbox.grid(row=10,column=1,sticky="w")
 
-# Auto Starforce button
-auto_starforce_button = ctk.CTkButton(
-    root,
-    text="Auto SF",
-    command=auto_starforce,
-    fg_color=("#1C1C1C", "#1C1C1C"),
-    hover_color=("#424242", "#424242"),
-    width=5,
-)
-auto_starforce_button.grid(
-    row=9, column=1,
-    padx=50,
-    sticky="e"
-)
 
-# Reveal button
-reveal_button = ctk.CTkButton(
-    root,
-    text="Reveal",
-    command=reveal,
-    fg_color=("#1C1C1C", "#1C1C1C"),
-    hover_color=("#424242", "#424242"),
-    width=5,
-)
-reveal_button.grid(
-    row=10, column=1,
-    padx=50,
-    sticky="e"
-)
+
 
 # Create buttons
 # Select Region button
@@ -649,7 +641,7 @@ tier_up_button = ctk.CTkButton(
     hover_color=("#424242", "#424242"),
     width=50,
     # height=25
-)
+    )
 tier_up_button.grid(row=7, column=0)  # place
 
 # Run
@@ -661,8 +653,37 @@ run_button = ctk.CTkButton(
     hover_color=("#424242", "#424242"),
     width=50,
     # height=25
-)
+    )
 run_button.grid(row=7, column=1, padx=0, sticky="w")  # place
+
+# Auto Starforce button
+auto_starforce_button = ctk.CTkButton(
+    root,
+    text="Auto SF",
+    command=auto_starforce,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+    )
+auto_starforce_button.grid(
+    row=9, column=1,
+    padx=50,
+    sticky="e"
+    )
+# Reveal button
+reveal_button = ctk.CTkButton(
+    root,
+    text="Reveal",
+    command=reveal,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+    )
+reveal_button.grid(
+    row=10, column=1,
+    padx=50,
+    sticky="e"
+    )
 
 #auto_craft
 auto_craft_button = ctk.CTkButton(
@@ -672,9 +693,10 @@ auto_craft_button = ctk.CTkButton(
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=5,
-)
+    )
 auto_craft_button.grid(
-    row=0, column=1)
+    row=0, column=1
+    )
 
 # Delay of reroll
 # Create the delay label
@@ -689,7 +711,7 @@ delay_spinbox = tk.Spinbox(
     format="%.1f",
     textvariable=cooldown_duration,
     width=5
-)
+    )
 delay_spinbox.grid(row=10, column=1, sticky="w")
 
 auto_ok_checkbox = ctk.CTkCheckBox(
@@ -710,16 +732,16 @@ keyboard.add_hotkey('ctrl+d', spam_click)
 # Create a dictionary to store widgets and their tooltips
 tooltips = {
     auto_craft_button: "Select the item you would like to craft "
-                        "and click this button. It will automatically craft whenever "
-                        "it detects the green crafting button. Stop with Shift",
+    "and click this button. It will automatically craft whenever "
+    "it detects the green crafting button. Stop with Shift",
     run_button: "CTRL+R will also run the cuber",
     auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift. CTRL+D will spam click instead",
     total_value_label: "Select the total value",
     attribute_label: "Select the attribute",
     tier_up_button: "Cube until the selected rarity is obtained",
     delay_label: "Increase the value if the script is rolling too early. "
-                "The value is in seconds. "
-                "2 seconds should work universally.",
+    "The value is in seconds. "
+    "2 seconds should work universally.",
     auto_ok_checkbox: "Tick this box if you want the program to automatically "
     "click OK when finished cubing."
 }
