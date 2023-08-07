@@ -301,14 +301,16 @@ def auto_starforce():
         "Enhance": "img/function/enhance.png",
         "SFOk": "img/function/sfok.png",
         "Ok": "img/function/ok.png",
+        "Confirm": "img/function/confirm.png",
+        "Transfer": "img/function/transfer.png"
     }
 
-    action_order = ["Enhance", "SFOk", "Ok"]
+    action_order = ["Enhance", "SFOk", "Ok","Confirm","Transfer"]
 
     while is_rolling:
         for action in action_order:
             image_path = Buttons[action]
-            find_and_click_image(image_path, confidence=0.7)
+            find_and_click_image(image_path, confidence=0.9)
             #Add movement code to uncover buttons?
 
 def auto_craft():
@@ -387,7 +389,6 @@ star_limits = [0, 10, 15]  # Available star limits
 gear_level_options = ['Low', 'High']
 rank_options = ['Rare', 'Epic', 'Unique', 'Legendary']
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
-
 non_attribute_options = ['ItemDrop', 'MesoObtain', 'SkillCD']
 
 # Base values for potential lines
