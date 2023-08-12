@@ -26,16 +26,6 @@ pag.PAUSE = 0.005
 last_reroll_time = 0
 is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
-starforce_buttons = [
-    "img/function/enhance.png",
-    "img/function/sfok.png",
-]
-starforce_conditions = [
-    "img/function/10star.png",
-    "img/function/15star.png",
-    "img/function/disablestarcatch.png",
-    "img/function/enablestarcatch.png",
-]
 #############################################
 ############### Defined Functions
 #############################################
@@ -310,7 +300,7 @@ def auto_starforce():
     while is_rolling:
         for action in action_order:
             image_path = Buttons[action]
-            find_and_click_image(image_path, confidence=0.9)
+            find_and_click_image(image_path, confidence=0.85)
             #Add movement code to uncover buttons?
 
 def auto_craft():
@@ -587,25 +577,25 @@ gear_level_dropdown.grid(
 row=2,column=1,sticky="w")
 gear_level_dropdown.bind('<<ComboboxSelected>>',gear_level_changed)
 # rarity dropdown
-rarity_label=label("rarity:")
+rarity_label=label("Rarity:")
 rarity_label.grid(row=3,column=0)
 rarity_dropdown=ttk.Combobox(root,values=rank_options,width=9)
 rarity_dropdown.grid(row=3,column=1,sticky="w")
 rarity_dropdown.bind('<<ComboboxSelected>>', rarity_changed)
 # attribute dropdown
-attribute_label=label("attribute:")
+attribute_label=label("Attribute:")
 attribute_label.grid(row=5,column=0)
 attribute_dropdown=ttk.Combobox(root,values=attribute_options,width=6)
 attribute_dropdown.grid(row=5,column=1,sticky="w")
 attribute_dropdown.bind('<<ComboboxSelected>>',lambda event:attribute_changed())
 # Create the total value dropdown
-total_value_label=label("Total Value:")
+total_value_label=label("Total value:")
 total_value_label.grid(row=6,column=0)
 total_value_dropdown=ttk.Combobox(root,width=3)
 total_value_dropdown.grid(row=6,column=1,sticky="w")
 total_value_dropdown.bind('<<ComboboxSelected>>',lambda event:total_value_changed())
 # Star limit dropdown
-star_limit_label=label("Star Limit:")
+star_limit_label=label("Star limit:")
 star_limit_label.grid(row=9,column=0)
 star_limit_dropdown=ttk.Combobox(root,values=star_limits,width=3)
 star_limit_dropdown.grid(row=9,    column=1,    sticky="w")
@@ -616,10 +606,9 @@ delay_label.grid(row=10,    column=0,    padx=global_padding,    pady=global_pad
 delay_spinbox=tk.Spinbox(root,    from_=0.0,    to=10.0,    increment=0.1,format="%.1f",    textvariable=cooldown_duration, width=5)
 delay_spinbox.grid(row=10,column=1,sticky="w")
 
-
-
-
+#################
 # Create buttons
+#################
 # Select Region button
 select_region_button = ctk.CTkButton(
     root, text="Select Region",
@@ -633,7 +622,7 @@ select_region_button.grid(row=0, column=0, pady=5)
 stop_key_label = label("Press Shift to STOP any process.")
 stop_key_label.grid(row=1, column=0, columnspan=2, pady=5)
 
-# Tier Up
+# Tier up button
 tier_up_button = ctk.CTkButton(
     root,
     text="Tier Up",
