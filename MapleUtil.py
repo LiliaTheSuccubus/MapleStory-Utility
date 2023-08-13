@@ -41,7 +41,7 @@ def update_cursor():
 
 # Press Ok Button
 def press_ok_button():
-    global last_reroll_time
+    global last_reroll_time, is_rolling
     current_time = time.time()
     # Check if AutoPressOk is enabled and if yes, click the "Ok" button
     if auto_ok_state.get() == "on":
@@ -49,6 +49,7 @@ def press_ok_button():
         if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
             time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
         find_and_click_image("img/function/ok.png",confidence=.9)
+        is_rolling = False
         print("Automatically closed cube UI because AutoOK set to On.")
     return
 # Image locator + click
@@ -99,7 +100,7 @@ def reroll():
                 time.sleep(0.01)
                 reset_cursor()
                 last_reroll_time = current_time  # Update the last reroll time
-                time.sleep(1.3)  # Delay to allow results to show
+                time.sleep(1.5)  # Delay to allow results to show
                 return
     return
 
@@ -272,7 +273,6 @@ def auto_rank():
 
                 if rank_location:
                     print(f"{rank} achieved!")
-                    is_rolling = False
                     press_ok_button()
                     break
                 else:
