@@ -309,7 +309,7 @@ def auto_starforce():
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while is_rolling:
-            futures = [executor.submit(find_and_click_image, image_path) for image_path in Buttons]
+            futures = [executor.submit(find_and_click_image, image_path, confidence=.85) for image_path in Buttons]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
             reset_cursor()
