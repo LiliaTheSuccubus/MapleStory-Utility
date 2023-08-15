@@ -18,6 +18,7 @@ import psutil
 import configparser
 import os
 import ast
+import concurrent.futures
 #############################################
 # Variables
 #############################################
@@ -26,6 +27,26 @@ pag.PAUSE = 0.005
 last_reroll_time = 0
 is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
+# Define image names as a list
+IMAGE_NAMES = [
+    "craft",
+    "craftok",
+    "craftok2",
+    "yes",
+    "extract",
+    "fuse",
+    "rankupfam",
+    "next"
+]
+
+# Define custom confidences for specific images
+CUSTOM_CONFIDENCES = {
+    "fuse": .97,
+    "rankupfam": 0.98
+}
+# Construct full image paths using f-strings
+IMAGE_PATHS = [f"img/function/{name}.png" for name in IMAGE_NAMES]
+
 #############################################
 ############### Defined Functions
 #############################################
@@ -52,17 +73,21 @@ def press_ok_button():
         is_rolling = False
         print("Automatically closed cube UI because AutoOK set to On.")
     return
+
 # Image locator + click
-def find_and_click_image(image_path, confidence=.95):
+def find_and_click_image(image_path, confidence=None):
+    if confidence is None:
+        confidence = CUSTOM_CONFIDENCES.get(image_path, 0.95)
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
     update_cursor()
     if image_location is not None:
         #print("clicking!")
         pag.click(image_location, clicks=1)
-        time.sleep(.2)
+        time.sleep(0.2)
         reset_cursor()
         return True
     return False
+
 # Reroll function for cubes
 def reroll():
     global last_reroll_time, is_rolling
@@ -271,22 +296,26 @@ def auto_starforce():
     is_rolling = True
     star_limit = int(star_limit_dropdown.get())
     print("Starforcing!")
+    update_cursor()
 
-    Buttons = {
-        "Enhance": "img/function/enhance.png",
-        "SFOk": "img/function/sfok.png",
-        "Ok": "img/function/ok.png",
-        "Confirm": "img/function/confirm.png",
-        "Transfer": "img/function/transfer.png"
-    }
+    Buttons = [
+        "img/function/enhance.png",
+        "img/function/enhance2.png",
+        "img/function/sfok.png",
+        "img/function/ok.png",
+        "img/function/confirm.png",
+        "img/function/transfer.png"
+    ]
 
-    action_order = ["Enhance", "SFOk", "Ok","Confirm","Transfer"]
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        while is_rolling:
+            futures = [executor.submit(find_and_click_image, image_path) for image_path in Buttons]
+            # Wait for all tasks to complete
+            concurrent.futures.wait(futures)
+            reset_cursor()
 
-    while is_rolling:
-        for action in action_order:
-            image_path = Buttons[action]
-            find_and_click_image(image_path, confidence=0.85)
-            #Add movement code to uncover buttons?
+            if not is_rolling:  # Check if is_rolling changed during this iteration
+                break  # Break the loop immediately
 
 def auto_craft():
     print("Crafting...")
@@ -294,16 +323,15 @@ def auto_craft():
     is_rolling = True
     update_cursor()
 
-    while is_rolling:
-        find_and_click_image("img/function/craft.png")
-        find_and_click_image("img/function/craftok.png")
-        find_and_click_image("img/function/craftok2.png")
-        find_and_click_image("img/function/yes.png")
-        find_and_click_image("img/function/extract.png")#for familiars
-        find_and_click_image("img/function/fuse.png",confidence=.97)#for familiars
-        find_and_click_image("img/function/rankupfam.png", confidence=.98)#for familiars
-        
-        reset_cursor()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        while is_rolling:  # Loop as long as is_rolling is True
+            futures = [executor.submit(find_and_click_image, image_path) for image_path in IMAGE_PATHS]
+            # Wait for all tasks to complete
+            concurrent.futures.wait(futures)
+            reset_cursor()
+
+            if not is_rolling:  # Check if is_rolling changed during this iteration
+                break  # Break the loop immediately
 
 # Auto reveal function for familiars
 def reveal():
