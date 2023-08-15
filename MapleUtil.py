@@ -53,7 +53,7 @@ def press_ok_button():
         print("Automatically closed cube UI because AutoOK set to On.")
     return
 # Image locator + click
-def find_and_click_image(image_path, confidence):
+def find_and_click_image(image_path, confidence=.95):
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
     update_cursor()
     if image_location is not None:
@@ -295,9 +295,12 @@ def auto_craft():
     update_cursor()
 
     while is_rolling:
-        find_and_click_image("img/function/craft.png",confidence=.9)
-        find_and_click_image("img/function/craftok.png",confidence=.9)
-        find_and_click_image("img/function/craftok2.png",confidence=.9)
+        find_and_click_image("img/function/craft.png")
+        find_and_click_image("img/function/craftok.png")
+        find_and_click_image("img/function/craftok2.png")
+        find_and_click_image("img/function/extract.png")#for familiars
+        find_and_click_image("img/function/fuse.png",confidence=.97)#for familiars
+        find_and_click_image("img/function/rankupfam.png", confidence=.97)#for familiars
         reset_cursor()
 
 # Auto reveal function for familiars
