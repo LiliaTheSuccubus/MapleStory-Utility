@@ -298,9 +298,11 @@ def auto_craft():
         find_and_click_image("img/function/craft.png")
         find_and_click_image("img/function/craftok.png")
         find_and_click_image("img/function/craftok2.png")
+        find_and_click_image("img/function/yes.png")
         find_and_click_image("img/function/extract.png")#for familiars
         find_and_click_image("img/function/fuse.png",confidence=.97)#for familiars
-        find_and_click_image("img/function/rankupfam.png", confidence=.97)#for familiars
+        find_and_click_image("img/function/rankupfam.png", confidence=.98)#for familiars
+        
         reset_cursor()
 
 # Auto reveal function for familiars
