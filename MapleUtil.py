@@ -69,16 +69,8 @@ def reroll():
     
     while is_rolling:
         current_time = time.time()
-        retry_button = pag.locateOnScreen(
-            "img/function/conemoretry.png",
-            region=region,
-            confidence=0.8,
-        )
-        outofcube = pag.locateCenterOnScreen(
-                "img/function/outofcube.png",
-                region=region,
-                confidence=0.97,
-            )
+        retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8,)
+        outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97,)
         if outofcube:
             print("Out of cubes.")
             press_ok_button()
@@ -223,9 +215,7 @@ def calculate_stat():
             except FileNotFoundError:
                 print(f"Image not found: {img_path}")
                 continue
-            matches = list(
-                pag.locateAllOnScreen(img, region=region, confidence=0.97)
-            )
+            matches = list(pag.locateAllOnScreen(img, region=region, confidence=0.97))
             line_number = int(img_name.split("attribute")[-1])
             for match in matches:
                 if match not in matched_coordinates:
@@ -265,19 +255,14 @@ def auto_rank():
     while is_rolling:
         rank_image = rank_images.get(rank)
         if rank_image:
-                rank_location = pag.locateOnScreen(
-                    rank_image,
-                    region=region,
-                    confidence=0.90
-                )
-
-                if rank_location:
-                    print(f"{rank} achieved!")
-                    press_ok_button()
-                    break
-                else:
-                    print("Rank not matched.")
-                    reroll()
+            rank_location = pag.locateOnScreen(rank_image, region=region, confidence=0.90)
+            if rank_location:
+                print(f"{rank} achieved!")
+                press_ok_button()
+                break
+            else:
+                print("Rank not matched.")
+                reroll()
 
 # Starforce automation
 def auto_starforce():
@@ -329,9 +314,11 @@ def spam_click():
     is_rolling = True
     update_cursor()
     print("clickin time")
+
     while is_rolling:
         pag.click()
         time.sleep(0.01)
+    
     reset_cursor()
 
 # Function to check for the Shift key and update the is_rolling flag
@@ -340,7 +327,7 @@ def hotkey_handler():
     while True:
         if is_rolling and keyboard.is_pressed('shift'):
             is_rolling = False
-            print("Rolling stopped.")
+            print("Functions stopped.")
         time.sleep(0.1)
 
 # Create a thread for the hotkey handling
