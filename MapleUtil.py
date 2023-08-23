@@ -29,14 +29,15 @@ is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
 # Define image names as a list
 IMAGE_NAMES = [
-    "craft",
     "craftok",
     "craftok2",
+    "craft",
     "yes",
     "extract",
     "fuse",
     "rankupfam",
-    "next"
+    "next",
+    "confirm"
 ]
 
 # Define custom confidences for specific images
@@ -75,11 +76,11 @@ def press_ok_button():
     return
 
 # Image locator + click
-def find_and_click_image(image_path, confidence=None):
+def find_and_click_image(image_path, confidence=0.98):
     if confidence is None:
         confidence = CUSTOM_CONFIDENCES.get(image_path, 0.95)
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
-    update_cursor()
+
     if image_location is not None:
         #print("clicking!")
         pag.click(image_location, clicks=1)
@@ -296,41 +297,41 @@ def auto_starforce():
     is_rolling = True
     star_limit = int(star_limit_dropdown.get())
     print("Starforcing!")
-    update_cursor()
 
     Buttons = [
         "img/function/enhance.png",
         "img/function/enhance2.png",
         "img/function/sfok.png",
         "img/function/ok.png",
-        "img/function/confirm.png",
+        "img/function/confirmsf.png",
         "img/function/transfer.png"
     ]
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while is_rolling:
+            update_cursor()
             futures = [executor.submit(find_and_click_image, image_path, confidence=.85) for image_path in Buttons]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
-            reset_cursor()
 
             if not is_rolling:  # Check if is_rolling changed during this iteration
+                reset_cursor()
                 break  # Break the loop immediately
 
 def auto_craft():
     print("Crafting...")
     global is_rolling
     is_rolling = True
-    update_cursor()
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while is_rolling:  # Loop as long as is_rolling is True
+            update_cursor()
             futures = [executor.submit(find_and_click_image, image_path) for image_path in IMAGE_PATHS]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
-            reset_cursor()
 
             if not is_rolling:  # Check if is_rolling changed during this iteration
+                reset_cursor()
                 break  # Break the loop immediately
 
 # Auto reveal function for familiars
