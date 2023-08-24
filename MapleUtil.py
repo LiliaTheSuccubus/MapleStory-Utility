@@ -736,8 +736,8 @@ auto_ok_checkbox.grid(row=7, column=1, padx=0, sticky="e")
 
 # Register the hotkey to activate the run button
 keyboard.add_hotkey('ctrl+r', calculate_stat)
-keyboard.add_hotkey('ctrl+s', auto_starforce)
-keyboard.add_hotkey('ctrl+d', spam_click)
+keyboard.add_hotkey('ctrl+p', auto_starforce)
+keyboard.add_hotkey('ctrl+l', spam_click)
 
 
 # Create a dictionary to store widgets and their tooltips
@@ -746,7 +746,7 @@ tooltips = {
     "and click this button. It will automatically craft whenever "
     "it detects the green crafting button. Stop with Shift",
     run_button: "CTRL+R will also run the cuber",
-    auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift. CTRL+D will spam click instead",
+    auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift. CTRL+L will spam click instead",
     total_value_label: "Select the total value",
     attribute_label: "Select the attribute",
     tier_up_button: "Cube until the selected rarity is obtained",
