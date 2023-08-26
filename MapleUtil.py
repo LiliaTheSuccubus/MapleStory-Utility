@@ -70,20 +70,26 @@ def press_ok_button():
         #print("Auto OK is on. Pressing Okay. Debug message to check if function is being performed.")
         if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
             time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-        find_and_click_image("img/function/ok.png",confidence=.9)
+        find_and_click_image("img/function/ok.png", confidence=.9)
         is_rolling = False
         print("Automatically closed cube UI because AutoOK set to On.")
     return
 
 # Image locator + click
-def find_and_click_image(image_path, confidence=0.98):
+def find_and_click_image(image_path, n=1, confidence=0.98):
+    """
+    Loads image from image_path with default confidence of .98, and clicks it N times.
+    :param n:           Number of times to click image.
+    :return:            None
+    """
     if confidence is None:
-        confidence = CUSTOM_CONFIDENCES.get(image_path, 0.95)
+        confidence = CUSTOM_CONFIDENCES.get(image_path, 0.98)
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
 
     if image_location is not None:
+
         #print("clicking!")
-        pag.click(image_location, clicks=1)
+        pag.click(image_location,clicks=n)
         time.sleep(0.2)
         reset_cursor()
         return True
@@ -105,7 +111,7 @@ def reroll():
         else:
             if  retry_button is None:
                 print("Retry button not found, pressing enter and recalculating.")
-                pag.press('enter', presses=2)
+                find_and_click_image("img/function/ok.png",2,confidence=.9)
                 current_time = time.time()
                 last_reroll_time = current_time
                 return
@@ -118,7 +124,7 @@ def reroll():
                 time.sleep(0.01)
                 reset_cursor()
                 last_reroll_time = current_time  # Update the last reroll time
-                time.sleep(1.5)  # Delay to allow results to show
+                time.sleep(1.6)  # Delay to allow results to show
                 return
     return
 
@@ -221,6 +227,7 @@ def calculate_stat():
     total = int(total_value_dropdown.get())
     print("Attribute and total set to: ", {total}, {attribute})
     save_settings()
+    update_cursor()
 
     images = {
         "attribute3": f"img/{attribute}3.png",
@@ -270,6 +277,7 @@ def auto_rank():
     is_rolling = True
     rank = rarity_dropdown.get()
     print("Tiering up!")
+    update_cursor()
 
     # Define a dictionary to map ranks to their respective image filenames
     rank_images = {
@@ -310,7 +318,7 @@ def auto_starforce():
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while is_rolling:
             update_cursor()
-            futures = [executor.submit(find_and_click_image, image_path, confidence=.85) for image_path in Buttons]
+            futures = [executor.submit(find_and_click_image, image_path,1,confidence=.85) for image_path in Buttons]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
 
@@ -746,7 +754,7 @@ tooltips = {
     "and click this button. It will automatically craft whenever "
     "it detects the green crafting button. Stop with Shift",
     run_button: "CTRL+R will also run the cuber",
-    auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift. CTRL+F1 will spam click instead",
+    auto_starforce_button: "Hotkey: CTRL+P. Stop with Shift. CTRL+F1 will spam click instead",
     total_value_label: "Select the total value",
     attribute_label: "Select the attribute",
     tier_up_button: "Cube until the selected rarity is obtained",
@@ -762,6 +770,7 @@ for name, text in tooltips.items():
     tooltip(name, text)
 
 load_settings()
+update_cursor()
 cooldown_duration.trace('w', update_delay)
 root.bind('<Configure>', lambda event: save_settings())
 root.mainloop()
