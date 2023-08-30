@@ -124,7 +124,7 @@ def reroll():
                 time.sleep(0.01)
                 reset_cursor()
                 last_reroll_time = current_time  # Update the last reroll time
-                time.sleep(1.6)  # Delay to allow results to show
+                time.sleep(1.4)  # Delay to allow results to show
                 return
     return
 
