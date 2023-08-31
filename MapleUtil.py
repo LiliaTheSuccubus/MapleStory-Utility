@@ -70,8 +70,7 @@ def press_ok_button():
         time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
     find_and_click_image("img/function/okorange.png", confidence=.9)
     print("AutoOK set to On. UI closed.")
-    raise Exception("Script halted.")
-
+    return
 
 # Image locator + click
 def find_and_click_image(image_path, n=1, confidence=0.98):
@@ -85,8 +84,6 @@ def find_and_click_image(image_path, n=1, confidence=0.98):
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
 
     if image_location is not None:
-
-        #print("clicking!")
         pag.click(image_location,clicks=n)
         time.sleep(0.2)
         reset_cursor()
@@ -109,6 +106,7 @@ def reroll():
         if outofcube:
             print("Out of cubes!")
             press_ok_button()
+            return
         elif retry_button is None:
             print("Retry button not found, pressing OK.")
             find_and_click_image("img/function/okgreen.png",1,confidence=.9)
@@ -289,10 +287,9 @@ def auto_rank():
     while is_rolling:
         time.sleep(0.5) # Delay before searching for match
         rank_location = pag.locateOnScreen(rank_images.get(rank), region=region, confidence=0.90)
-        if rank_location:
+        if rank_location: # if desired rank is located
             is_rolling = False
             print(f"{rank} achieved!")
-            # Check if AutoPressOk is enabled and if yes, click the "Ok" button
             if auto_ok_state.get() == "on":
                 press_ok_button()
             return
@@ -361,7 +358,6 @@ def spam_click():
     while is_rolling:
         pag.click()
         time.sleep(0.01)
-    
     reset_cursor()
 
 # Function to check for the Shift key and update the is_rolling flag
@@ -371,7 +367,7 @@ def hotkey_handler():
         if is_rolling and keyboard.is_pressed('shift'):
             is_rolling = False
             print("Functions stopped.")
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 # Create a thread for the hotkey handling
 hotkey_thread = threading.Thread(target=hotkey_handler)
