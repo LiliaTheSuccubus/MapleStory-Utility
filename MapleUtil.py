@@ -22,14 +22,14 @@ import concurrent.futures
 #############################################
 # Variables
 #############################################
-initial_position = None
+initial_position = pag.position()
 pag.PAUSE = 0.005
 last_reroll_time = 0
 is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
 # Define image names as a list
 IMAGE_NAMES = [
-    "craftok",
+    "okgreen",
     "craftok2",
     "craft",
     "yes",
@@ -64,16 +64,14 @@ def update_cursor():
 # Press Ok Button
 def press_ok_button():
     global last_reroll_time, is_rolling
+    is_rolling = False
     current_time = time.time()
-    # Check if AutoPressOk is enabled and if yes, click the "Ok" button
-    if auto_ok_state.get() == "on":
-        #print("Auto OK is on. Pressing Okay. Debug message to check if function is being performed.")
-        if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
-            time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-        find_and_click_image("img/function/ok.png", confidence=.9)
-        is_rolling = False
-        print("Automatically closed cube UI because AutoOK set to On.")
-    return
+    if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
+        time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
+    find_and_click_image("img/function/okorange.png", confidence=.9)
+    print("AutoOK set to On. UI closed.")
+    raise Exception("Script halted.")
+
 
 # Image locator + click
 def find_and_click_image(image_path, n=1, confidence=0.98):
@@ -103,29 +101,31 @@ def reroll():
         current_time = time.time()
         retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8,)
         outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97,)
+        
+        while retry_button is None:
+            retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8,)
+            find_and_click_image("img/function/okgreen.png",1,confidence=.9)
+        
         if outofcube:
-            print("Out of cubes.")
+            print("Out of cubes!")
             press_ok_button()
-            is_rolling=False
+        elif retry_button is None:
+            print("Retry button not found, pressing OK.")
+            find_and_click_image("img/function/okgreen.png",1,confidence=.9)
+            current_time = time.time()
+            last_reroll_time = current_time
             return
-        else:
-            if  retry_button is None:
-                print("Retry button not found, pressing enter and recalculating.")
-                find_and_click_image("img/function/ok.png",2,confidence=.9)
-                current_time = time.time()
-                last_reroll_time = current_time
-                return
-            if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
-                print("Rerolling...")
-                update_cursor()
-                # focus_maplestory_window() - fix this function
-                pag.click(retry_button, clicks=5)
-                pag.press('enter', presses=5)
-                time.sleep(0.01)
-                reset_cursor()
-                last_reroll_time = current_time  # Update the last reroll time
-                time.sleep(1.4)  # Delay to allow results to show
-                return
+        elif current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
+            print("Rerolling...")
+            update_cursor()
+            # focus_maplestory_window() - fix this function
+            pag.click(retry_button, clicks=5)
+            pag.press('enter', presses=5)
+            time.sleep(0.05)
+            reset_cursor()
+            last_reroll_time = current_time  # Update the last reroll time
+            time.sleep(1.4)  # Delay to allow results to show
+            return
     return
 
 # Focus MapleStory - currently disfunctional, issue with win32gui module
@@ -221,13 +221,12 @@ def select_region():
 
 # Calculate Stat function for rolling potentials
 def calculate_stat():
-    global is_rolling
-    is_rolling = True
+    global is_rolling 
+    is_rolling = True # Set flag to ON
     attribute = attribute_dropdown.get()
     total = int(total_value_dropdown.get())
     print("Attribute and total set to: ", {total}, {attribute})
     save_settings()
-    update_cursor()
 
     images = {
         "attribute3": f"img/{attribute}3.png",
@@ -261,8 +260,10 @@ def calculate_stat():
         print(f"Current total: {count}")
 
         if count >= total:
+            is_rolling = False # Looping stopped
             print(f"{attribute} {count} reached!")
-            press_ok_button()
+            if auto_ok_state.get() == "on":
+                press_ok_button()
             return
 
         print("Insufficient lines found, performing reroll...")
@@ -277,7 +278,6 @@ def auto_rank():
     is_rolling = True
     rank = rarity_dropdown.get()
     print("Tiering up!")
-    update_cursor()
 
     # Define a dictionary to map ranks to their respective image filenames
     rank_images = {
@@ -287,16 +287,18 @@ def auto_rank():
     }
 
     while is_rolling:
-        rank_image = rank_images.get(rank)
-        if rank_image:
-            rank_location = pag.locateOnScreen(rank_image, region=region, confidence=0.90)
-            if rank_location:
-                print(f"{rank} achieved!")
+        time.sleep(0.5) # Delay before searching for match
+        rank_location = pag.locateOnScreen(rank_images.get(rank), region=region, confidence=0.90)
+        if rank_location:
+            is_rolling = False
+            print(f"{rank} achieved!")
+            # Check if AutoPressOk is enabled and if yes, click the "Ok" button
+            if auto_ok_state.get() == "on":
                 press_ok_button()
-                break
-            else:
-                print("Rank not matched.")
-                reroll()
+            return
+        else:
+            print("Rank not matched.")
+            reroll()
 
 # Starforce automation
 def auto_starforce():
@@ -310,7 +312,6 @@ def auto_starforce():
         "img/function/enhance.png",
         "img/function/enhance2.png",
         "img/function/sfok.png",
-        "img/function/ok.png",
         "img/function/confirmsf.png",
         "img/function/transfer.png"
     ]
