@@ -391,7 +391,6 @@ def reveal():
     while is_rolling:
         find_and_click_image("img/function/reveal.png",confidence=.9)
 
-# Spam click function
 def spam_click():
     global is_rolling
     is_rolling = True
