@@ -1,3 +1,18 @@
+"""
+Todo:
+
+* modular confidence field: adjust confidence without having to restart debugging
+* in-window terminal; embedded terminal within the program to eliminate window clutter
+* cube counter:
+    - session amount (total)
+    - current iteration
+* optimize calculate_stat function:
+    - implement multiconditional calculation
+    - condense calculations by eliminating the excess searching of images outside of the specific scope of tier+level
+    - add allstat images and write algorithm to consider them in match total
+LILIA CUTE MASCOT??? convert an image to ASCII artt for code intro
+"""
+
 #############################################
 # Imports
 #############################################
