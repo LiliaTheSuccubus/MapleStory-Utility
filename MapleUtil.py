@@ -39,7 +39,7 @@ import concurrent.futures
 #############################################
 initial_position = pag.position()
 pag.PAUSE = 0.005
-last_reroll_time = 0
+last_reroll_time = time.time()
 is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
 # Define image names as a list
@@ -96,10 +96,10 @@ def close_cube_window():
     is_rolling = False
     check_cooldown()
     find_and_click_image("img/function/okorange.png", confidence=.9)
-    print("Alrighty, I closed the cubing window for ya!")
+    return
 
 # Image locator + click
-def find_and_click_image(image_path, n=1, confidence=0.98):
+def find_and_click_image(image_path, n=1, confidence=0.98, p=False):
     """
     Loads image from image_path with default confidence of .98, and clicks it N times.
     :param n:           Number of times to click image.
@@ -111,41 +111,41 @@ def find_and_click_image(image_path, n=1, confidence=0.98):
 
     if image_location is not None:
         pag.click(image_location,clicks=n)
-        time.sleep(0.2)
+        time.sleep(0.05)
         reset_cursor()
         image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
         if image_location is not None:
             return False
         else:
             return True
-    print(f"I didn't find {image_path}! You sure that's the right image? Maybe adjust the confidence ({confidence})!")
+    if p is not False:
+        print(f"I didn't find {image_path}! You sure that's the right image? Maybe adjust the confidence ({confidence})!")
     return False # image not found
 
 def check_cooldown(): # Doesn't modify any values so global variables SHOULDN'T be needed.
     """
     Waits for  remainder of the reroll cooldown before proceeding
     """
-    current_time = time.time()
-    if current_time - last_reroll_time < float(cooldown_duration.get()): 
-        time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
+    time_elapsed = time.time() - last_reroll_time
+    cooldown_remaining = float(cooldown_duration.get()) - time_elapsed
+    if cooldown_remaining > 0:
+        time.sleep(cooldown_remaining)
     
 def check_rank():
     """
-Acts like a traffic stop; 
-    Waits for rank to appear in cubing window before proceeding.
-
-    Does not modify or interact with script variables
+    Acts like a traffic stop; 
+    Waits for rank to appear in the cubing window before proceeding.
     """
     rank_found = False
 
-    while rank_found is False:
-        # Loop through the rank_images dictionary and check if any rank image is located
+    while rank_found is False and is_rolling:
         for rank, image_path in rank_images.items():
-            if pag.locateCenterOnScreen(image_path, region=region, confidence=0.90) is not None:
-                # print(f"Rank {rank} detected. Proceeding...")
+            if pag.locateCenterOnScreen(image_path, region=region, confidence=0.9):
+                #print(f"Rank {rank} detected. Proceeding...")
                 rank_found = True
                 break  # Exit the loop once any rank image is found
-
+    return rank_found
+ 
 # Reroll function for cubes
 def reroll():
     """
@@ -157,23 +157,29 @@ def reroll():
     * automatically uses cube to reroll potential
     * is cute :3
     """
-    global last_reroll_time
-    current_time = time.now()
-    outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97)
-    retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8)
+    global last_reroll_time, is_rolling
 
-    if outofcube:
-        print("Out of cubes, boss!")
-        close_cube_window()
-    
-    if retry_button is not None:
-        update_cursor()
-        # focus_maplestory_window() - fix this thingy so program wont click outside
-        pag.click(retry_button, clicks=5)
-        pag.press('enter', presses=5)
-        print("Okay! I rolled it for ya~!")
-        last_reroll_time = current_time  # Update the last reroll time
-        reset_cursor()
+    if check_rank():
+        outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97)
+        retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8)
+        
+        if is_rolling:
+            if outofcube:
+                print("Out of cubes, boss!")
+                if auto_ok_state.get() == "on":
+                    close_cube_window()
+                else:
+                    is_rolling = False # Looping stopped
+            
+            if retry_button is not None:
+                update_cursor()
+                check_cooldown()
+                # focus_maplestory_window() - fix this thingy so program wont click outside
+                pag.click(retry_button, clicks=5)
+                pag.press('enter', presses=5)
+                print("Okay! I rolled it for ya~!")
+                last_reroll_time = time.time()  # Update the last reroll time
+                reset_cursor()
 
 # Focus MapleStory - currently disfunctional, issue with win32gui module or skill issue?
 def focus_maplestory_window():
@@ -267,18 +273,20 @@ def select_region():
 
 def cube_prompt_user():
     """
-    
+    Your function description here.
     """
-    current_time = time.time()
-    global is_rolling, last_reroll_time
-    retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8)
-    print("Use your cube on whatever ya want!")
+    global last_reroll_time
 
-    while is_rolling and retry_button is None:
-        update_cursor()
-        find_and_click_image("img/function/okgreen.png")
-        time.sleep(0.05)
-    last_reroll_time = current_time  # Update the last reroll time
+    if pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.9):
+        return
+    else:
+        print("Ya gotta cube somethin'!")
+        while is_rolling:
+            update_cursor()
+            if is_rolling is False or pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.9):
+                return
+            if find_and_click_image("img/function/okgreen.png"):
+                last_reroll_time = time.time() # Update the last reroll time
 
 # Calculate Stat function for rolling potentials
 def calculate_stat():
@@ -286,8 +294,10 @@ def calculate_stat():
     
     """
     global is_rolling
+    is_rolling = True
     attribute = attribute_dropdown.get()
     total = int(total_value_dropdown.get())
+    gear_level = gear_level_dropdown.get()
     count = 0
     lines = []  # Initialize a list to store the lines found
     matched_coordinates = set()  # Keep track of matched coordinates
@@ -298,14 +308,13 @@ def calculate_stat():
         img_path = f"img/{attribute}{n}.png"
         images[img_name] = img_path
     
-    print(f"So ya want {total}{attribute}? I'll see what I can do!")
-    save_settings()
     cube_prompt_user()
-
-    check_rank()
+    print(f"So ya want {total} {attribute}? I'll see what I can do!")
+    save_settings()
+    
     print("Alrighty, gambling time! Haha~")
-    is_rolling = True
     while count < total and is_rolling:
+        print("I'm mathing...")
         for img_name, img_path in images.items():
             try:
                 img = Image.open(img_path)
@@ -318,42 +327,50 @@ def calculate_stat():
                 if match not in matched_coordinates:
                     lines.append(line_number)
                     matched_coordinates.add(match)
-
         count = sum(lines) # Adds up lines for total value
-        print(f"I found these numbers: {lines}!")
-        print(f"So that's about, uh... {count}?")
+        if is_rolling:
+            print(f"I found these numbers: {lines}!")
+            print(f"So that's about, uh... {count}?")
         if count >= total:
-            print(f"Awesomepossum! We reached the goal of {total}{attribute}!")
-            is_rolling = False # Looping stopped
+            print(f"Awesomepossum! We reached the goal of {total} {attribute}!")
             if auto_ok_state.get() == "on":
                 close_cube_window()
+            else:
+                is_rolling = False # Looping stopped
             return
-        else:
+        elif is_rolling:
             print("We didn't get enough, boss... Lemme roll it again!")
             count = 0  # reset count to zero
             lines = []  # Clear lines
             matched_coordinates.clear()  # Clear matched coordinates
-            reroll()
+            if is_rolling:
+                reroll()
+            time.sleep(1.37)
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank():
-    global is_rolling, rank_images
+    global is_rolling
     is_rolling = True
     rank = rarity_dropdown.get()
+    
+    cube_prompt_user()
     print("Tiering up!")
+    save_settings()
 
     while is_rolling:
-        rank_location = pag.locateOnScreen(rank_images.get(rank), region=region, confidence=0.90)
-        if rank_location: # If desired rank is located
-            is_rolling = False
-            print(f"{rank} achieved!")
-            if auto_ok_state.get() == "on":
-                print("Auto OK: ON")
-                close_cube_window()
-            return
-        else:
-            print("Rank not matched.")
-            reroll()
+        check_cooldown()
+        if check_rank():
+            rank_location = pag.locateCenterOnScreen(rank_images.get(rank), region=region, confidence=0.90)
+            if rank_location: # If desired rank is located
+                print(f"{rank} achieved!")
+                if auto_ok_state.get() == "on":
+                    close_cube_window()
+                else:
+                    is_rolling = False
+                return
+            elif is_rolling:
+                print("Rank not matched.")
+                reroll()
 
 # Starforce automation
 def auto_starforce():
