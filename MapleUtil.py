@@ -74,6 +74,9 @@ IMAGE_PATHS = [f"img/function/{name}.png" for name in IMAGE_NAMES]
 #############################################
 ############### Defined Functions
 #############################################
+def calculate_gear_rarity_values(attribute, rarity, gear_level):
+    gear_level_values = base_values[gear_level][rarity]
+    return [f"{attribute}{value}" for value in gear_level_values if value != 0]
 
 # Reset cursor position
 def reset_cursor():
@@ -297,16 +300,22 @@ def calculate_stat():
     is_rolling = True
     attribute = attribute_dropdown.get()
     total = int(total_value_dropdown.get())
+    rarity = rarity_dropdown.get()
     gear_level = gear_level_dropdown.get()
+    images = {}
+    available_values = calculate_gear_rarity_values(attribute, rarity, gear_level)
     count = 0
     lines = []  # Initialize a list to store the lines found
     matched_coordinates = set()  # Keep track of matched coordinates
-    images = {}
-    values = [3, 4, 6, 7, 9, 10, 12, 13]
-    for n in values:
-        img_name = f"attribute{n}"
-        img_path = f"img/{attribute}{n}.png"
-        images[img_name] = img_path
+    print(available_values)
+
+    for value in available_values:
+        img_path = f"img/{value}.png"
+
+        if os.path.exists(img_path):
+            images[value] = Image.open(img_path)
+        else:
+            print(f"Image not found: {img_path}")
     
     cube_prompt_user()
     print(f"So ya want {total} {attribute}? I'll see what I can do!")
@@ -315,14 +324,9 @@ def calculate_stat():
     print("Alrighty, gambling time! Haha~")
     while count < total and is_rolling:
         print("I'm mathing...")
-        for img_name, img_path in images.items():
-            try:
-                img = Image.open(img_path)
-            except FileNotFoundError:
-                print(f"Image not found: {img_path}")
-                continue
+        for img_name, img in images.items():
             matches = list(pag.locateAllOnScreen(img, region=region, confidence=0.96))
-            line_number = int(img_name.split("attribute")[-1])
+            line_number = int(img_name.split(f"{attribute}")[-1])
             for match in matches:
                 if match not in matched_coordinates:
                     lines.append(line_number)
@@ -345,7 +349,7 @@ def calculate_stat():
             matched_coordinates.clear()  # Clear matched coordinates
             if is_rolling:
                 reroll()
-            time.sleep(1.37)
+            time.sleep(1.25)
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank():
