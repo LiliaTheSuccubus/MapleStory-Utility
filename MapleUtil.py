@@ -458,17 +458,18 @@ def auto_symbol():
     if os.path.exists(img_path):
         if use_active is False:
             find_and_click_image("img/inventory/use.png")
+        
         find_and_click_image(img_path, 2)
         time.sleep(0.4)
         press('enter')
         time.sleep(.3)
         press('y')
+        time.sleep(1.2)
+        press('y')
+        find_and_click_image("img/inventory/equip.png",confidence=0.8)
+        time.sleep(0.3)
+        press('y')
         time.sleep(0.8)
-        press('y')
-        time.sleep(0.3)
-        find_and_click_image("img/inventory/equip.png")
-        time.sleep(0.3)
-        press('y')
         find_and_click_image(img_path, 2)
         press('enter', presses=2)
     else:
