@@ -18,6 +18,7 @@ LILIA CUTE MASCOT??? convert an image to ASCII artt for code intro
 #############################################
 import keyboard
 import pyautogui as pag
+from pyautogui import press
 from tkinter import *
 import time
 import subprocess
@@ -102,10 +103,13 @@ def close_cube_window():
     return
 
 # Image locator + click
-def find_and_click_image(image_path, n=1, confidence=0.98, p=False):
+def find_and_click_image(image_path, n=1, confidence=0.98, debug=False, locate=False):
     """
     Loads image from image_path with default confidence of .98, and clicks it N times.
     :param n:           Number of times to click image.
+    :param confidence:  Adjusts matching accuracy.
+    :param debug:       Toggles printing a statement with image_path to debug.
+    :param locate:      Set to True to skip clicking functionality. Returns True or False.
     :return:            None
     """
     if confidence is None:
@@ -113,17 +117,15 @@ def find_and_click_image(image_path, n=1, confidence=0.98, p=False):
     image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
 
     if image_location is not None:
+        if locate is True:
+            return True
         pag.click(image_location,clicks=n)
         time.sleep(0.05)
         reset_cursor()
-        image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
-        if image_location is not None:
-            return False
-        else:
-            return True
-    if p is not False:
-        print(f"I didn't find {image_path}! You sure that's the right image? Maybe adjust the confidence ({confidence})!")
-    return False # image not found
+    else:
+        if debug is True:
+            print(f"I didn't find {image_path}! You sure that's the right image? Maybe adjust the confidence ({confidence})!")
+        return False
 
 def check_cooldown(): # Doesn't modify any values so global variables SHOULDN'T be needed.
     """
@@ -438,6 +440,31 @@ def spam_click():
         time.sleep(0.01)
     reset_cursor()
 
+def auto_symbol():
+    """ Automatically uses the symbols from Arcane River and attempts to equip them. """
+
+    use_active = find_and_click_image("img/inventory/useactive.png", locate=True)
+    symbol = symbol_dropdown.get()
+
+    img_path = f"img/symbols/{symbol}.png"
+    if os.path.exists(img_path):
+        if use_active is False:
+            find_and_click_image("img/inventory/use.png")
+        find_and_click_image(img_path, 2)
+        time.sleep(0.4)
+        press('enter')
+        time.sleep(.3)
+        press('y')
+        time.sleep(0.8)
+        press('y')
+        find_and_click_image("img/inventory/equip.png")
+        time.sleep(0.3)
+        press('y')
+        find_and_click_image(img_path, 2)
+        press('enter', presses=2)
+    else:
+        print(f"No image found for {symbol}")
+
 # Function to check for the Shift key and update the is_rolling flag
 def hotkey_handler():
     global is_rolling
@@ -465,6 +492,7 @@ root.resizable(True, True)
 global_padding = 5
 auto_ok_state = ctk.StringVar(value="off")
 star_limits = [0, 10, 15]  # Available star limits
+regions = ['VJ', 'CC', 'LL', 'AR', 'MR', 'ES']
 gear_level_options = ['Low', 'High']
 rank_options = ['Rare', 'Epic', 'Unique', 'Legendary']
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
@@ -639,6 +667,11 @@ def star_limit_changed(*args):
     star_limit_selected = star_limit_dropdown.get()
     print(f"Total Value set to {star_limit_selected}.")
     save_settings()
+# symbol region
+def symbol_changed(*args):
+    symbol_selected = symbol_dropdown.get()
+    print(f"Symbol Region set to {symbol_selected}.")
+    save_settings()
 # reroll delay
 def update_delay(*args):
     updated_delay = cooldown_duration.get()
@@ -682,8 +715,14 @@ total_value_dropdown.bind('<<ComboboxSelected>>',lambda event:total_value_change
 star_limit_label=label("Star limit:")
 star_limit_label.grid(row=9,column=0)
 star_limit_dropdown=ttk.Combobox(root,values=star_limits,width=3)
-star_limit_dropdown.grid(row=9,    column=1,    sticky="w")
+star_limit_dropdown.grid(row=9,column=1,sticky="w")
 star_limit_dropdown.bind('<<ComboboxSelected>>', lambda event: star_limit_changed())
+# Symbol dropdown
+symbol_label=label("Symbol:")
+symbol_label.grid(row=11,column=0)
+symbol_dropdown=ttk.Combobox(root,values=regions,width=3)
+symbol_dropdown.grid(row=11,column=1,sticky="w")
+symbol_dropdown.bind('<<ComboboxSelected>>', lambda event: symbol_changed())
 
 #################
 # Create buttons
@@ -790,6 +829,21 @@ reveal_button = ctk.CTkButton(
     )
 reveal_button.grid(
     row=10, column=1,
+    padx=50,
+    sticky="e"
+    )
+
+# Auto Symbol button
+symbol_button = ctk.CTkButton(
+    root,
+    text="Auto Symbol",
+    command=auto_symbol,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+    )
+symbol_button.grid(
+    row=11, column=1,
     padx=50,
     sticky="e"
     )
