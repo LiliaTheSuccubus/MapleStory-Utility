@@ -440,6 +440,14 @@ def spam_click():
         time.sleep(0.01)
     reset_cursor()
 
+def spam_key():
+    global is_rolling
+    is_rolling = True
+
+    while is_rolling:
+        press('w')
+        time.sleep(0.05)
+
 def auto_symbol():
     """ Automatically uses the symbols from Arcane River and attempts to equip them. """
 
@@ -457,6 +465,7 @@ def auto_symbol():
         press('y')
         time.sleep(0.8)
         press('y')
+        time.sleep(0.3)
         find_and_click_image("img/inventory/equip.png")
         time.sleep(0.3)
         press('y')
@@ -852,6 +861,7 @@ symbol_button.grid(
 keyboard.add_hotkey('ctrl+r', calculate_stat)
 keyboard.add_hotkey('ctrl+p', auto_starforce)
 keyboard.add_hotkey('ctrl+d', spam_click)
+keyboard.add_hotkey('ctrl+e', spam_key)
 
 # Create a dictionary to store widgets and their tooltips
 tooltips = {
