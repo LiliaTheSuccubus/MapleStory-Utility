@@ -458,7 +458,6 @@ def auto_symbol():
     if os.path.exists(img_path):
         if use_active is False:
             find_and_click_image("img/inventory/use.png")
-        
         find_and_click_image(img_path, 2)
         time.sleep(0.4)
         press('enter')
