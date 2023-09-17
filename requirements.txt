@@ -10,3 +10,4 @@ tensorflow
 pyautogui
 customtkinter
 pytesseract
+psutil
