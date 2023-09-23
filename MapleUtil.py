@@ -1,8 +1,24 @@
+"""
+TODO:
+
+* modular confidence field: adjust confidence without having to restart debugging
+* in-window terminal; embedded terminal within the program to eliminate window clutter
+* cube counter:
+    - session amount (total)
+    - current iteration
+* optimize calculate_stat function:
+    - implement multiconditional calculation
+    - condense calculations by eliminating the excess searching of images outside of the specific scope of tier+level
+    - add allstat images and write algorithm to consider them in match total
+LILIA CUTE MASCOT??? convert an image to ASCII artt for code intro
+"""
+
 #############################################
 # Imports
 #############################################
 import keyboard
 import pyautogui as pag
+from pyautogui import press
 from tkinter import *
 import time
 import subprocess
@@ -18,17 +34,50 @@ import psutil
 import configparser
 import os
 import ast
+import concurrent.futures
 #############################################
 # Variables
 #############################################
-initial_position = None
+initial_position = pag.position()
 pag.PAUSE = 0.005
-last_reroll_time = 0
+last_reroll_time = time.time()
 is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
+# Define image names as a list
+IMAGE_NAMES = [
+    "okgreen",
+    "craftok2",
+    "craft",
+    "yes",
+    "extract",
+    "fuse",
+    "rankupfam",
+    "next",
+    "confirm"
+]
+
+# Define a dictionary to map ranks to their respective image filenames
+rank_images = {
+    "Rare": "img/ranks/rare.png",
+    "Epic": "img/ranks/epic.png",
+    "Unique": "img/ranks/unique.png",
+    "Legendary": "img/ranks/ld.png",
+}
+
+# Define custom confidences for specific images
+CUSTOM_CONFIDENCES = {
+    "fuse": .97,
+    "rankupfam": 0.98
+}
+# Construct full image paths using f-strings
+IMAGE_PATHS = [f"img/function/{name}.png" for name in IMAGE_NAMES]
+
 #############################################
 ############### Defined Functions
 #############################################
+def calculate_gear_rarity_values(attribute, rarity, gear_level):
+    gear_level_values = base_values[gear_level][rarity]
+    return [f"{attribute}{value}" for value in gear_level_values if value != 0]
 
 # Reset cursor position
 def reset_cursor():
@@ -39,64 +88,108 @@ def update_cursor():
     global initial_position
     initial_position = pag.position()
 
-# Press Ok Button
-def press_ok_button():
-    global last_reroll_time, is_rolling
-    current_time = time.time()
-    # Check if AutoPressOk is enabled and if yes, click the "Ok" button
-    if auto_ok_state.get() == "on":
-        #print("Auto OK is on. Pressing Okay. Debug message to check if function is being performed.")
-        if current_time - last_reroll_time < float(cooldown_duration.get()): # wait for the delay before clicking will close the cube UI
-            time.sleep(float(cooldown_duration.get()) - (current_time - last_reroll_time))
-        find_and_click_image("img/function/ok.png",confidence=.9)
-        is_rolling = False
-        print("Automatically closed cube UI because AutoOK set to On.")
-    return
-# Image locator + click
-def find_and_click_image(image_path, confidence=.95):
-    image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
+def close_cube_window():
+    """
+    Features:
+    * updates cursor position at start
+    * sets rolling flag to False
+    * closes cube UI by pressing OK
+    """
     update_cursor()
-    if image_location is not None:
-        #print("clicking!")
-        pag.click(image_location, clicks=1)
-        time.sleep(.2)
-        reset_cursor()
-        return True
-    return False
-# Reroll function for cubes
-def reroll():
-    global last_reroll_time, is_rolling
-    
-    while is_rolling:
-        current_time = time.time()
-        retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8,)
-        outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97,)
-        if outofcube:
-            print("Out of cubes.")
-            press_ok_button()
-            is_rolling=False
-            return
-        else:
-            if  retry_button is None:
-                print("Retry button not found, pressing enter and recalculating.")
-                pag.press('enter', presses=2)
-                current_time = time.time()
-                last_reroll_time = current_time
-                return
-            if current_time - last_reroll_time >= float(cooldown_duration.get()) and retry_button is not None:
-                print("Rerolling...")
-                update_cursor()
-                # focus_maplestory_window() - fix this function
-                pag.click(retry_button, clicks=5)
-                pag.press('enter', presses=5)
-                time.sleep(0.01)
-                reset_cursor()
-                last_reroll_time = current_time  # Update the last reroll time
-                time.sleep(1.5)  # Delay to allow results to show
-                return
+    global is_rolling
+    is_rolling = False
+    time_elapsed = time.time() - last_reroll_time
+    cooldown_remaining = 1.7 - time_elapsed
+    if cooldown_remaining > 0:
+        time.sleep(cooldown_remaining)
+    find_and_click_image("img/function/okorange.png", confidence=.9)
     return
 
-# Focus MapleStory - currently disfunctional, issue with win32gui module
+# Image locator + click
+def find_and_click_image(image_path, n=1, confidence=0.98, debug=False, locate=False):
+    """
+    Loads image from image_path with default confidence of .98, and clicks it N times.
+    :param n:           Number of times to click image.
+    :param confidence:  Adjusts matching accuracy.
+    :param debug:       Toggles printing a statement with image_path to debug.
+    :param locate:      Set to True to skip clicking functionality. Returns True or False.
+    :return:            None
+    """
+    if confidence is None:
+        confidence = CUSTOM_CONFIDENCES.get(image_path, 0.98)
+    image_location = pag.locateCenterOnScreen(image_path, region=region, confidence=confidence)
+
+    if image_location is not None:
+        if locate is True:
+            return True
+        pag.click(image_location,clicks=n)
+        time.sleep(0.05)
+        reset_cursor()
+    else:
+        if debug is True:
+            print(f"I didn't find {image_path}! You sure that's the right image? Maybe adjust the confidence ({confidence})!")
+        return False
+
+def check_cooldown(): # Doesn't modify any values so global variables SHOULDN'T be needed.
+    """
+    Waits for  remainder of the reroll cooldown before proceeding
+    """
+    time_elapsed = time.time() - last_reroll_time
+    cooldown_remaining = 1.7 - time_elapsed
+    if cooldown_remaining > 0:
+        time.sleep(cooldown_remaining)
+    
+def check_rank():
+    """
+    Acts like a traffic stop; 
+    Waits for rank to appear in the cubing window before proceeding.
+    """
+    rank_found = False
+
+    while rank_found is False and is_rolling:
+        for rank, image_path in rank_images.items():
+            if pag.locateCenterOnScreen(image_path, region=region, confidence=0.9):
+                #print(f"Rank {rank} detected. Proceeding...")
+                rank_found = True
+                break  # Exit the loop once any rank image is found
+    return rank_found
+ 
+# Reroll function for cubes
+def reroll():
+    """
+    Rerolling function for cubing. Has failsafes implemented, so
+    there's no need to call other functions to prepare for the usage of reroll.
+    
+    Features:
+    * detects if cubes are exhausted
+    * automatically uses cube to reroll potential
+    * is cute :3
+    """
+    global last_reroll_time, is_rolling
+
+    # if check_rank():
+    outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97)
+    retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8)
+    
+    if is_rolling:
+        if outofcube:
+            print("Out of cubes, boss!")
+            if auto_ok_state.get() == "on":
+                close_cube_window()
+            else:
+                is_rolling = False # Looping stopped
+        
+        if retry_button is not None:
+            update_cursor()
+            # check_cooldown()
+            # focus_maplestory_window() - fix this thingy so program wont click outside
+            pag.click(retry_button, clicks=5)
+            pag.press('enter', presses=5)
+            print("Okay! I rolled it for ya~!")
+            last_reroll_time = time.time()  # Update the last reroll time
+            reset_cursor()
+
+# Focus MapleStory - currently disfunctional, issue with win32gui module or skill issue?
 def focus_maplestory_window():
     # Replace with the actual MapleStory process name
     target_process_name = "MapleStory.exe"
@@ -157,16 +250,15 @@ class tooltip:
             self.tooltip.destroy()
             self.tooltip = None
 
-""" OCR project that is incomplete
-# Path to tesseract executable, change this to your local path
-pytesseract.pytesseract.tesseract_cmd=r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+# OCR project that is incomplete
+# # Path to tesseract executable, change this to your local path
+# pytesseract.pytesseract.tesseract_cmd=r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-# Function to perform OCR on an image
-def ocr(image_path):
-    img=Image.open(image_path)
-    text=pytesseract.image_to_string(img)
-    return text.strip()
-"""
+# # Function to perform OCR on an image
+# def ocr(image_path):
+#     img=Image.open(image_path)
+#     text=pytesseract.image_to_string(img)
+#     return text.strip()
 
 # Select Region for utility
 def select_region():
@@ -187,82 +279,107 @@ def select_region():
         print("Region selection canceled. Keeping the old region values.")
     return region
 
+def cube_prompt_user():
+    """
+    Your function description here.
+    """
+    global last_reroll_time
+
+    if pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.9):
+        return
+    else:
+        print("Ya gotta cube somethin'!")
+        while is_rolling:
+            update_cursor()
+            if is_rolling is False or pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.9):
+                return
+            if find_and_click_image("img/function/okgreen.png"):
+                last_reroll_time = time.time() # Update the last reroll time
+
 # Calculate Stat function for rolling potentials
 def calculate_stat():
+    """
+    
+    """
     global is_rolling
     is_rolling = True
     attribute = attribute_dropdown.get()
     total = int(total_value_dropdown.get())
-    print("Attribute and total set to: ", {total}, {attribute})
-    save_settings()
-
-    images = {
-        "attribute3": f"img/{attribute}3.png",
-        "attribute6": f"img/{attribute}6.png",
-        "attribute9": f"img/{attribute}9.png",
-        "attribute12": f"img/{attribute}12.png"
-    }
-
+    rarity = rarity_dropdown.get()
+    gear_level = gear_level_dropdown.get()
+    images = {}
+    available_values = calculate_gear_rarity_values(attribute, rarity, gear_level)
     count = 0
     lines = []  # Initialize a list to store the lines found
     matched_coordinates = set()  # Keep track of matched coordinates
+    print(available_values)
 
-    print("Calculate Function.")
+    for value in available_values:
+        img_path = f"img/{value}.png"
+
+        if os.path.exists(img_path):
+            images[value] = Image.open(img_path)
+        else:
+            print(f"Image not found: {img_path}")
+    
+    cube_prompt_user()
+    print(f"So ya want {total} {attribute}? I'll see what I can do!")
+    save_settings()
+    
+    print("Alrighty, gambling time! Haha~")
     while count < total and is_rolling:
-        for img_name, img_path in images.items():
-            try:
-                img = Image.open(img_path)
-            except FileNotFoundError:
-                print(f"Image not found: {img_path}")
-                continue
-            matches = list(pag.locateAllOnScreen(img, region=region, confidence=0.97))
-            line_number = int(img_name.split("attribute")[-1])
+        print("I'm mathing...")
+        for img_name, img in images.items():
+            matches = list(pag.locateAllOnScreen(img, region=region, confidence=0.96))
+            line_number = int(img_name.split(f"{attribute}")[-1])
             for match in matches:
                 if match not in matched_coordinates:
                     lines.append(line_number)
                     matched_coordinates.add(match)
-
-        count = sum(lines)
-
-        print(f"Lines found: {lines}")
-        print(f"Current total: {count}")
-
+        count = sum(lines) # Adds up lines for total value
+        if is_rolling:
+            print(f"I found these numbers: {lines}!")
+            print(f"So that's about, uh... {count}?")
         if count >= total:
-            print(f"{attribute} {count} reached!")
-            press_ok_button()
+            print(f"Awesomepossum! We reached the goal of {total} {attribute}!")
+            if auto_ok_state.get() == "on":
+                close_cube_window()
+            else:
+                is_rolling = False # Looping stopped
             return
-
-        print("Insufficient lines found, performing reroll...")
-        count = 0  # reset count to zero
-        lines = []  # Clear lines
-        matched_coordinates.clear()  # Clear matched coordinates
-        reroll()
+        elif is_rolling:
+            print("We didn't get enough, boss... Lemme roll it again!")
+            count = 0  # reset count to zero
+            lines = []  # Clear lines
+            matched_coordinates.clear()  # Clear matched coordinates
+            if is_rolling:
+                reroll()
+            sleep_duration = float(cooldown_duration.get())
+            time.sleep(sleep_duration)
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank():
     global is_rolling
     is_rolling = True
     rank = rarity_dropdown.get()
+    
+    cube_prompt_user()
     print("Tiering up!")
-
-    # Define a dictionary to map ranks to their respective image filenames
-    rank_images = {
-        "Epic": "img/ranks/epic.png",
-        "Unique": "img/ranks/unique.png",
-        "Legendary": "img/ranks/ld.png",
-    }
+    save_settings()
 
     while is_rolling:
-        rank_image = rank_images.get(rank)
-        if rank_image:
-            rank_location = pag.locateOnScreen(rank_image, region=region, confidence=0.90)
-            if rank_location:
-                print(f"{rank} achieved!")
-                press_ok_button()
-                break
+        rank_location = pag.locateCenterOnScreen(rank_images.get(rank), region=region, confidence=0.90)
+        if rank_location: # If desired rank is located
+            print(f"{rank} achieved!")
+            if auto_ok_state.get() == "on":
+                close_cube_window()
             else:
-                print("Rank not matched.")
-                reroll()
+                is_rolling = False
+            return
+        elif is_rolling:
+            print("Rank not matched.")
+            reroll()
+            time.sleep(sleep_duration)
 
 # Starforce automation
 def auto_starforce():
@@ -272,36 +389,40 @@ def auto_starforce():
     star_limit = int(star_limit_dropdown.get())
     print("Starforcing!")
 
-    Buttons = {
-        "Enhance": "img/function/enhance.png",
-        "SFOk": "img/function/sfok.png",
-        "Ok": "img/function/ok.png",
-        "Confirm": "img/function/confirm.png",
-        "Transfer": "img/function/transfer.png"
-    }
+    Buttons = [
+        "img/function/enhance.png",
+        "img/function/enhance2.png",
+        "img/function/sfok.png",
+        "img/function/confirmsf.png",
+        "img/function/transfer.png"
+    ]
 
-    action_order = ["Enhance", "SFOk", "Ok","Confirm","Transfer"]
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        while is_rolling:
+            update_cursor()
+            futures = [executor.submit(find_and_click_image, image_path,1,confidence=.90) for image_path in Buttons]
+            # Wait for all tasks to complete
+            concurrent.futures.wait(futures)
 
-    while is_rolling:
-        for action in action_order:
-            image_path = Buttons[action]
-            find_and_click_image(image_path, confidence=0.85)
-            #Add movement code to uncover buttons?
+            if not is_rolling:  # Check if is_rolling changed during this iteration
+                reset_cursor()
+                break  # Break the loop immediately
 
 def auto_craft():
     print("Crafting...")
     global is_rolling
     is_rolling = True
-    update_cursor()
 
-    while is_rolling:
-        find_and_click_image("img/function/craft.png")
-        find_and_click_image("img/function/craftok.png")
-        find_and_click_image("img/function/craftok2.png")
-        find_and_click_image("img/function/extract.png")#for familiars
-        find_and_click_image("img/function/fuse.png",confidence=.97)#for familiars
-        find_and_click_image("img/function/rankupfam.png", confidence=.97)#for familiars
-        reset_cursor()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        while is_rolling:  # Loop as long as is_rolling is True
+            update_cursor()
+            futures = [executor.submit(find_and_click_image, image_path) for image_path in IMAGE_PATHS]
+            # Wait for all tasks to complete
+            concurrent.futures.wait(futures)
+
+            if not is_rolling:  # Check if is_rolling changed during this iteration
+                reset_cursor()
+                break  # Break the loop immediately
 
 # Auto reveal function for familiars
 def reveal():
@@ -311,18 +432,50 @@ def reveal():
     while is_rolling:
         find_and_click_image("img/function/reveal.png",confidence=.9)
 
-# Spam click function
 def spam_click():
     global is_rolling
     is_rolling = True
     update_cursor()
-    print("clickin time")
+    print("I'm clickin' as fast as I can!")
 
     while is_rolling:
         pag.click()
         time.sleep(0.01)
-    
     reset_cursor()
+
+def spam_key():
+    global is_rolling
+    is_rolling = True
+
+    while is_rolling:
+        press('w')
+        time.sleep(0.05)
+
+def auto_symbol():
+    """ Automatically uses the symbols from Arcane River and attempts to equip them. """
+
+    use_active = find_and_click_image("img/inventory/useactive.png", locate=True)
+    symbol = symbol_dropdown.get()
+
+    img_path = f"img/symbols/{symbol}.png"
+    if os.path.exists(img_path):
+        if use_active is False:
+            find_and_click_image("img/inventory/use.png")
+        find_and_click_image(img_path, 2)
+        time.sleep(0.4)
+        press('enter')
+        time.sleep(.3)
+        press('y')
+        time.sleep(1.2)
+        press('y',2)
+        find_and_click_image("img/inventory/equip.png",confidence=0.8)
+        time.sleep(0.3)
+        press('y')
+        time.sleep(0.8)
+        find_and_click_image(img_path, 2)
+        press('enter', presses=2)
+    else:
+        print(f"No image found for {symbol}")
 
 # Function to check for the Shift key and update the is_rolling flag
 def hotkey_handler():
@@ -331,7 +484,7 @@ def hotkey_handler():
         if is_rolling and keyboard.is_pressed('shift'):
             is_rolling = False
             print("Functions stopped.")
-        time.sleep(0.1)
+        time.sleep(0.05)
 
 # Create a thread for the hotkey handling
 hotkey_thread = threading.Thread(target=hotkey_handler)
@@ -340,19 +493,6 @@ hotkey_thread.daemon = True
 hotkey_thread.start()
 
 #########################################################################################
-
-# class App(ctk.CTk):
-#     def __init__(self):
-#         super().__init__()
-
-#         self.title("Maple Util")
-#         self.geometry("250x350")
-#         self.grid_columnconfigure((0,1,2), weight=1)
-#         self.resizable(True,True)
-#         self._set_appearance_mode("dark")
-#         self.iconbitmap("img/icon/cubeicon.ico")
-
-
 # Root mainframe GU
 ctk.set_appearance_mode("dark")
 root = ctk.CTk()
@@ -360,17 +500,15 @@ root.iconbitmap("img/icon/cubeicon.ico")
 root.geometry("300x350")
 root.title("Maple Util")
 root.resizable(True, True)
-
 ########### Variables
-
 global_padding = 5
 auto_ok_state = ctk.StringVar(value="off")
 star_limits = [0, 10, 15]  # Available star limits
+regions = ['VJ', 'CC', 'LL', 'AR', 'MR', 'ES']
 gear_level_options = ['Low', 'High']
 rank_options = ['Rare', 'Epic', 'Unique', 'Legendary']
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
 non_attribute_options = ['ItemDrop', 'MesoObtain', 'SkillCD']
-
 # Base values for potential lines
 base_values = {
     'Low': {
@@ -387,9 +525,9 @@ base_values = {
     }
 }
 cooldown_duration = tk.StringVar()
-cooldown_duration.set("1.8")
-############### Definitions for GUI
+cooldown_duration.set("1.30")
 
+############### Definitions for GUI
 # Save settings function (updated to avoid overwriting the settings file)
 def save_settings():
     config = configparser.ConfigParser()
@@ -430,7 +568,7 @@ def load_settings():
     if 'General' not in config:
         # Set default values if the 'General' section is missing
         config['General'] = {
-            'CooldownDuration': '1.8',
+            'CooldownDuration': '1.80',
             'AutoOKState': 'off',
             'GearLevelSetting': 'Low',
             'RaritySetting': 'Epic',
@@ -442,7 +580,7 @@ def load_settings():
         }
 
     # Load settings from the configuration file or use default values
-    cooldown_duration_value = config['General'].getfloat('CooldownDuration', 1.8)
+    cooldown_duration_value = config['General'].getfloat('CooldownDuration', 1.80)
     auto_ok_state.set(config['General'].get('AutoOKState', 'off'))
     gear_level = config['General'].get('GearLevelSetting', 'Low')
     rarity = config['General'].get('RaritySetting', 'Epic')
@@ -467,19 +605,16 @@ def load_settings():
     rarity_dropdown.set(rarity)
     star_limit_dropdown.set(star_limit)
     attribute_dropdown.set(attribute)
-    total_value_dropdown.set(total_value)
     update_total_value_option()
+    total_value_dropdown.set(total_value)
 
     # Set the window dimension (geometry) using root.geometry()
     window_dimension = config['General'].get('WindowDimension', '800x600')
     root.geometry(window_dimension)
 
-
-
 def checkbox_event():
     print("Automatically close cube UI set to: ", auto_ok_state.get())
     save_settings()
-
 
 # Label function
 def label(text):
@@ -544,17 +679,25 @@ def star_limit_changed(*args):
     star_limit_selected = star_limit_dropdown.get()
     print(f"Total Value set to {star_limit_selected}.")
     save_settings()
+# symbol region
+def symbol_changed(*args):
+    symbol_selected = symbol_dropdown.get()
+    print(f"Symbol Region set to {symbol_selected}.")
+    save_settings()
 # reroll delay
 def update_delay(*args):
+    global sleep_duration
     updated_delay = cooldown_duration.get()
-    cooldown_duration.set(updated_delay)
+    try:
+        sleep_duration = float(updated_delay)
+    except ValueError:
+        sleep_duration = 2.0
     print(f"Cooldown updated to {updated_delay}.")
     save_settings()
 
 ################
 # Dropdown lists (Combobox/spinbox)
 ###############
-
 
 # Gear level dropdown
 gear_level_label=label("Gear Level:")
@@ -588,13 +731,14 @@ total_value_dropdown.bind('<<ComboboxSelected>>',lambda event:total_value_change
 star_limit_label=label("Star limit:")
 star_limit_label.grid(row=9,column=0)
 star_limit_dropdown=ttk.Combobox(root,values=star_limits,width=3)
-star_limit_dropdown.grid(row=9,    column=1,    sticky="w")
+star_limit_dropdown.grid(row=9,column=1,sticky="w")
 star_limit_dropdown.bind('<<ComboboxSelected>>', lambda event: star_limit_changed())
-# Create the reroll delay dropdown
-delay_label=label("Adjust delay of reroll:")
-delay_label.grid(row=10,    column=0,    padx=global_padding,    pady=global_padding,    sticky="e")
-delay_spinbox=tk.Spinbox(root,    from_=0.0,    to=10.0,    increment=0.1,format="%.1f",    textvariable=cooldown_duration, width=5)
-delay_spinbox.grid(row=10,column=1,sticky="w")
+# Symbol dropdown
+symbol_label=label("Symbol:")
+symbol_label.grid(row=11,column=0)
+symbol_dropdown=ttk.Combobox(root,values=regions,width=3)
+symbol_dropdown.grid(row=11,column=1,sticky="w")
+symbol_dropdown.bind('<<ComboboxSelected>>', lambda event: symbol_changed())
 
 #################
 # Create buttons
@@ -608,6 +752,20 @@ select_region_button = ctk.CTkButton(
     width=5,
     )
 select_region_button.grid(row=0, column=0, pady=5)
+
+#auto_craft
+auto_craft_button = ctk.CTkButton(
+    root,
+    text="Auto Craft",
+    command=auto_craft,
+    fg_color=("#1C1C1C", "#1C1C1C"),
+    hover_color=("#424242", "#424242"),
+    width=5,
+    )
+auto_craft_button.grid(
+    row=0, column=1
+    )
+
 # Stop hotkey tip
 stop_key_label = label("Press Shift to STOP any process.")
 stop_key_label.grid(row=1, column=0, columnspan=2, pady=5)
@@ -636,6 +794,15 @@ run_button = ctk.CTkButton(
     )
 run_button.grid(row=7, column=1, padx=0, sticky="w")  # place
 
+auto_ok_checkbox = ctk.CTkCheckBox(
+    root, text="Auto OK",
+    command=checkbox_event,
+    variable=auto_ok_state,
+    onvalue="on",
+    offvalue="off"
+    )
+auto_ok_checkbox.grid(row=7, column=1, padx=0, sticky="e")
+
 # Auto Starforce button
 auto_starforce_button = ctk.CTkButton(
     root,
@@ -650,6 +817,23 @@ auto_starforce_button.grid(
     padx=50,
     sticky="e"
     )
+
+# Delay of reroll
+# Create the delay label
+delay_label = label("Adjust delay of reroll:")
+delay_label.grid(row=10, column=0, padx=global_padding, pady=global_padding, sticky="e")
+# Create the delay spinbox
+delay_spinbox = tk.Spinbox(
+    root,
+    from_=0.0,
+    to=10.0,
+    increment=0.01,
+    format="%.2f",
+    textvariable=cooldown_duration,
+    width=5
+    )
+delay_spinbox.grid(row=10, column=1, sticky="w")
+
 # Reveal button
 reveal_button = ctk.CTkButton(
     root,
@@ -665,64 +849,41 @@ reveal_button.grid(
     sticky="e"
     )
 
-#auto_craft
-auto_craft_button = ctk.CTkButton(
+# Auto Symbol button
+symbol_button = ctk.CTkButton(
     root,
-    text="Auto Craft",
-    command=auto_craft,
+    text="Auto Symbol",
+    command=auto_symbol,
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
     width=5,
     )
-auto_craft_button.grid(
-    row=0, column=1
+symbol_button.grid(
+    row=11, column=1,
+    padx=50,
+    sticky="e"
     )
-
-# Delay of reroll
-# Create the delay label
-delay_label = label("Adjust delay of reroll:")
-delay_label.grid(row=10, column=0, padx=global_padding, pady=global_padding, sticky="e")
-# Create the delay spinbox
-delay_spinbox = tk.Spinbox(
-    root,
-    from_=0.0,
-    to=10.0,
-    increment=0.1,
-    format="%.1f",
-    textvariable=cooldown_duration,
-    width=5
-    )
-delay_spinbox.grid(row=10, column=1, sticky="w")
-
-auto_ok_checkbox = ctk.CTkCheckBox(
-    root, text="Auto OK",
-    command=checkbox_event,
-    variable=auto_ok_state,
-    onvalue="on",
-    offvalue="off"
-    )
-auto_ok_checkbox.grid(row=7, column=1, padx=0, sticky="e")
 
 # Register the hotkey to activate the run button
 keyboard.add_hotkey('ctrl+r', calculate_stat)
-keyboard.add_hotkey('ctrl+s', auto_starforce)
+keyboard.add_hotkey('ctrl+p', auto_starforce)
 keyboard.add_hotkey('ctrl+d', spam_click)
-
+keyboard.add_hotkey('ctrl+e', spam_key)
 
 # Create a dictionary to store widgets and their tooltips
 tooltips = {
     auto_craft_button: "Select the item you would like to craft "
-    "and click this button. It will automatically craft whenever "
-    "it detects the green crafting button. Stop with Shift",
+    "and click this button. I will automatically craft whenever "
+    "I detect the green crafting button. Stop with Shift",
     run_button: "CTRL+R will also run the cuber",
-    auto_starforce_button: "Hotkey: CTRL+S. Stop with Shift. CTRL+D will spam click instead",
+    auto_starforce_button: "Hotkey: CTRL+P. Stop with Shift. CTRL+D will spam click instead",
     total_value_label: "Select the total value",
     attribute_label: "Select the attribute",
     tier_up_button: "Cube until the selected rarity is obtained",
-    delay_label: "Increase the value if the script is rolling too early. "
+    delay_label: "Increase the value if I'm rolling too early! "
     "The value is in seconds. "
-    "2 seconds should work universally.",
-    auto_ok_checkbox: "Tick this box if you want the program to automatically "
+    "2 seconds should work universally. Or 2.5 if you have mild lag.",
+    auto_ok_checkbox: "Tick this box if you want me to automatically "
     "click OK when finished cubing."
 }
 
@@ -731,8 +892,7 @@ for name, text in tooltips.items():
     tooltip(name, text)
 
 load_settings()
+update_cursor()
 cooldown_duration.trace('w', update_delay)
 root.bind('<Configure>', lambda event: save_settings())
 root.mainloop()
-# app = App()
-# app.mainloop()
