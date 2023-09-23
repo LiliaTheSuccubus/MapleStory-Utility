@@ -1,5 +1,5 @@
 """
-Todo:
+TODO:
 
 * modular confidence field: adjust confidence without having to restart debugging
 * in-window terminal; embedded terminal within the program to eliminate window clutter
@@ -98,7 +98,10 @@ def close_cube_window():
     update_cursor()
     global is_rolling
     is_rolling = False
-    check_cooldown()
+    time_elapsed = time.time() - last_reroll_time
+    cooldown_remaining = 1.7 - time_elapsed
+    if cooldown_remaining > 0:
+        time.sleep(cooldown_remaining)
     find_and_click_image("img/function/okorange.png", confidence=.9)
     return
 
@@ -132,7 +135,7 @@ def check_cooldown(): # Doesn't modify any values so global variables SHOULDN'T 
     Waits for  remainder of the reroll cooldown before proceeding
     """
     time_elapsed = time.time() - last_reroll_time
-    cooldown_remaining = float(cooldown_duration.get()) - time_elapsed
+    cooldown_remaining = 1.7 - time_elapsed
     if cooldown_remaining > 0:
         time.sleep(cooldown_remaining)
     
@@ -164,27 +167,27 @@ def reroll():
     """
     global last_reroll_time, is_rolling
 
-    if check_rank():
-        outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97)
-        retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8)
+    # if check_rank():
+    outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97)
+    retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8)
+    
+    if is_rolling:
+        if outofcube:
+            print("Out of cubes, boss!")
+            if auto_ok_state.get() == "on":
+                close_cube_window()
+            else:
+                is_rolling = False # Looping stopped
         
-        if is_rolling:
-            if outofcube:
-                print("Out of cubes, boss!")
-                if auto_ok_state.get() == "on":
-                    close_cube_window()
-                else:
-                    is_rolling = False # Looping stopped
-            
-            if retry_button is not None:
-                update_cursor()
-                check_cooldown()
-                # focus_maplestory_window() - fix this thingy so program wont click outside
-                pag.click(retry_button, clicks=5)
-                pag.press('enter', presses=5)
-                print("Okay! I rolled it for ya~!")
-                last_reroll_time = time.time()  # Update the last reroll time
-                reset_cursor()
+        if retry_button is not None:
+            update_cursor()
+            # check_cooldown()
+            # focus_maplestory_window() - fix this thingy so program wont click outside
+            pag.click(retry_button, clicks=5)
+            pag.press('enter', presses=5)
+            print("Okay! I rolled it for ya~!")
+            last_reroll_time = time.time()  # Update the last reroll time
+            reset_cursor()
 
 # Focus MapleStory - currently disfunctional, issue with win32gui module or skill issue?
 def focus_maplestory_window():
@@ -351,7 +354,8 @@ def calculate_stat():
             matched_coordinates.clear()  # Clear matched coordinates
             if is_rolling:
                 reroll()
-            time.sleep(1.25)
+            sleep_duration = float(cooldown_duration.get())
+            time.sleep(sleep_duration)
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank():
@@ -364,19 +368,18 @@ def auto_rank():
     save_settings()
 
     while is_rolling:
-        check_cooldown()
-        if check_rank():
-            rank_location = pag.locateCenterOnScreen(rank_images.get(rank), region=region, confidence=0.90)
-            if rank_location: # If desired rank is located
-                print(f"{rank} achieved!")
-                if auto_ok_state.get() == "on":
-                    close_cube_window()
-                else:
-                    is_rolling = False
-                return
-            elif is_rolling:
-                print("Rank not matched.")
-                reroll()
+        rank_location = pag.locateCenterOnScreen(rank_images.get(rank), region=region, confidence=0.90)
+        if rank_location: # If desired rank is located
+            print(f"{rank} achieved!")
+            if auto_ok_state.get() == "on":
+                close_cube_window()
+            else:
+                is_rolling = False
+            return
+        elif is_rolling:
+            print("Rank not matched.")
+            reroll()
+            time.sleep(sleep_duration)
 
 # Starforce automation
 def auto_starforce():
@@ -464,7 +467,7 @@ def auto_symbol():
         time.sleep(.3)
         press('y')
         time.sleep(1.2)
-        press('y')
+        press('y',2)
         find_and_click_image("img/inventory/equip.png",confidence=0.8)
         time.sleep(0.3)
         press('y')
@@ -522,7 +525,7 @@ base_values = {
     }
 }
 cooldown_duration = tk.StringVar()
-cooldown_duration.set("1.80")
+cooldown_duration.set("1.30")
 
 ############### Definitions for GUI
 # Save settings function (updated to avoid overwriting the settings file)
@@ -683,8 +686,12 @@ def symbol_changed(*args):
     save_settings()
 # reroll delay
 def update_delay(*args):
+    global sleep_duration
     updated_delay = cooldown_duration.get()
-    cooldown_duration.set(updated_delay)
+    try:
+        sleep_duration = float(updated_delay)
+    except ValueError:
+        sleep_duration = 2.0
     print(f"Cooldown updated to {updated_delay}.")
     save_settings()
 
