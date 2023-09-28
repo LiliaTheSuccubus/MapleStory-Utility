@@ -457,21 +457,31 @@ def auto_symbol():
     use_active = find_and_click_image("img/inventory/useactive.png", locate=True)
     symbol = symbol_dropdown.get()
 
+    symbols = ["VJ", "CC", "LL", "AR", "MR", "ES"]
+
+    if symbol == "daily":
+        find_and_click_image("img/inventory/equip.png", confidence=0.8)
+        for symbol_item in symbols:
+            img_path = f"img/symbols/{symbol_item}.png"
+            find_and_click_image(img_path, 2)
+            press('enter',2)
+            time.sleep(0.4)
+        return
+
     img_path = f"img/symbols/{symbol}.png"
     if os.path.exists(img_path):
         if use_active is False:
             find_and_click_image("img/inventory/use.png")
+        time.sleep(0.2)
         find_and_click_image(img_path, 2)
-        time.sleep(0.4)
+        time.sleep(0.6)
         press('enter')
         time.sleep(.3)
         press('y')
-        time.sleep(1.2)
-        press('y',2)
+        time.sleep(0.4)
+        find_and_click_image("img/function/endchat.png",confidence=0.8)
         find_and_click_image("img/inventory/equip.png",confidence=0.8)
         time.sleep(0.3)
-        press('y')
-        time.sleep(0.8)
         find_and_click_image(img_path, 2)
         press('enter', presses=2)
     else:
@@ -504,7 +514,7 @@ root.resizable(True, True)
 global_padding = 5
 auto_ok_state = ctk.StringVar(value="off")
 star_limits = [0, 10, 15]  # Available star limits
-regions = ['VJ', 'CC', 'LL', 'AR', 'MR', 'ES']
+regions = ['daily','VJ', 'CC', 'LL', 'AR', 'MR', 'ES']
 gear_level_options = ['Low', 'High']
 rank_options = ['Rare', 'Epic', 'Unique', 'Legendary']
 attribute_options = ['STR', 'DEX', 'INT', 'LUK', 'ATT', 'MATT']
