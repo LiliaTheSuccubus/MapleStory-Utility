@@ -457,15 +457,15 @@ def auto_symbol():
     use_active = find_and_click_image("img/inventory/useactive.png", locate=True)
     symbol = symbol_dropdown.get()
 
-    symbols = ["VJ", "CC", "LL", "AR", "MR", "ES"]
+    symbols = ['VJ', 'CC', 'LL', 'AR', 'MR', 'ES','cern','arcus','odium']
 
-    if symbol == "daily":
+    if symbol == 'daily':
         find_and_click_image("img/inventory/equip.png", confidence=0.8)
         for symbol_item in symbols:
             img_path = f"img/symbols/{symbol_item}.png"
-            find_and_click_image(img_path, 2)
-            press('enter',2)
-            time.sleep(0.4)
+            if find_and_click_image(img_path, 2) is not False:
+                press('enter',2)
+                time.sleep(0.8)
         return
 
     img_path = f"img/symbols/{symbol}.png"
@@ -556,6 +556,7 @@ def save_settings():
         'StarLimitSetting': star_limit_dropdown.get(),
         'StatSetting': attribute_dropdown.get(),
         'TotalValueSelected': total_value_dropdown.get(),
+        'SymbolSetting': symbol_dropdown.get(),
         'RegionArea': region,
         'WindowDimension': root.geometry()
     }
@@ -597,6 +598,7 @@ def load_settings():
     star_limit = config['General'].getint('StarLimitSetting', 0)
     attribute = config['General'].get('StatSetting', 'INT')
     total_value = config['General'].get('TotalValueSelected', '3')
+    symbol = config['General'].get('SymbolSetting', 'daily')
     region_str = config['General'].get('RegionArea', '(843, 383, 1065, 694)')
     try:
         region = ast.literal_eval(region_str)
@@ -617,6 +619,7 @@ def load_settings():
     attribute_dropdown.set(attribute)
     update_total_value_option()
     total_value_dropdown.set(total_value)
+    symbol_dropdown.set(symbol)
 
     # Set the window dimension (geometry) using root.geometry()
     window_dimension = config['General'].get('WindowDimension', '800x600')
@@ -743,12 +746,15 @@ star_limit_label.grid(row=9,column=0)
 star_limit_dropdown=ttk.Combobox(root,values=star_limits,width=3)
 star_limit_dropdown.grid(row=9,column=1,sticky="w")
 star_limit_dropdown.bind('<<ComboboxSelected>>', lambda event: star_limit_changed())
-# Symbol dropdown
+# Auto Symbol dropdown + button
 symbol_label=label("Symbol:")
-symbol_label.grid(row=11,column=0)
-symbol_dropdown=ttk.Combobox(root,values=regions,width=3)
-symbol_dropdown.grid(row=11,column=1,sticky="w")
+symbol_dropdown=ttk.Combobox(root,values=regions,width=6)
 symbol_dropdown.bind('<<ComboboxSelected>>', lambda event: symbol_changed())
+symbol_button = ctk.CTkButton(root,text="Auto Symbol",command=auto_symbol,
+    fg_color=("#1C1C1C", "#1C1C1C"),hover_color=("#424242", "#424242"),width=5,)
+symbol_label.grid(row=10, column=0)
+symbol_dropdown.grid(row=10,column=1,sticky="w")
+symbol_button.grid(row=10,column=1,padx=60,pady=5,sticky="e")
 
 #################
 # Create buttons
@@ -811,7 +817,7 @@ auto_ok_checkbox = ctk.CTkCheckBox(
     onvalue="on",
     offvalue="off"
     )
-auto_ok_checkbox.grid(row=7, column=1, padx=0, sticky="e")
+auto_ok_checkbox.grid(row=7, column=1, padx=60, sticky="w")
 
 # Auto Starforce button
 auto_starforce_button = ctk.CTkButton(
@@ -825,13 +831,13 @@ auto_starforce_button = ctk.CTkButton(
 auto_starforce_button.grid(
     row=9, column=1,
     padx=50,
-    sticky="e"
+    sticky="w"
     )
 
 # Delay of reroll
 # Create the delay label
 delay_label = label("Adjust delay of reroll:")
-delay_label.grid(row=10, column=0, padx=global_padding, pady=global_padding, sticky="e")
+delay_label.grid(row=11, column=0,padx=5)
 # Create the delay spinbox
 delay_spinbox = tk.Spinbox(
     root,
@@ -842,7 +848,7 @@ delay_spinbox = tk.Spinbox(
     textvariable=cooldown_duration,
     width=5
     )
-delay_spinbox.grid(row=10, column=1, sticky="w")
+delay_spinbox.grid(row=11, column=1, padx=5, sticky="w")
 
 # Reveal button
 reveal_button = ctk.CTkButton(
@@ -854,25 +860,12 @@ reveal_button = ctk.CTkButton(
     width=5,
     )
 reveal_button.grid(
-    row=10, column=1,
-    padx=50,
-    sticky="e"
+    row=11, column=1,
+    padx=70,
+    sticky="w"
     )
 
-# Auto Symbol button
-symbol_button = ctk.CTkButton(
-    root,
-    text="Auto Symbol",
-    command=auto_symbol,
-    fg_color=("#1C1C1C", "#1C1C1C"),
-    hover_color=("#424242", "#424242"),
-    width=5,
-    )
-symbol_button.grid(
-    row=11, column=1,
-    padx=50,
-    sticky="e"
-    )
+
 
 # Register the hotkey to activate the run button
 keyboard.add_hotkey('ctrl+r', calculate_stat)
