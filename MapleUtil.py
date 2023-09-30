@@ -867,11 +867,12 @@ reveal_button.grid(
 
 
 
-# Register the hotkey to activate the run button
+# HOTKEYS
 keyboard.add_hotkey('ctrl+r', calculate_stat)
 keyboard.add_hotkey('ctrl+p', auto_starforce)
 keyboard.add_hotkey('ctrl+d', spam_click)
 keyboard.add_hotkey('ctrl+e', spam_key)
+keyboard.add_hotkey('ctrl+c', auto_craft)
 
 # Create a dictionary to store widgets and their tooltips
 tooltips = {
