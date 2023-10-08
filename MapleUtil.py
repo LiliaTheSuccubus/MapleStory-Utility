@@ -424,6 +424,9 @@ def auto_craft():
                 reset_cursor()
                 break  # Break the loop immediately
 
+def chicken_dance():
+    print("chiggen")
+
 # Auto reveal function for familiars
 def reveal():
     global is_rolling
