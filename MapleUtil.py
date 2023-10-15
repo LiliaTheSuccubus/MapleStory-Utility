@@ -427,13 +427,22 @@ def auto_craft():
 def chicken_dance():
     print("chiggen")
 
-# Auto reveal function for familiars
+# Auto reveal function for familiars - also open threads of fate rn, im too lazy make separate function
 def reveal():
     global is_rolling
     is_rolling = True
+    keydown_delay = 0.015
+    print("Reveal() function activated!")
 
     while is_rolling:
-        find_and_click_image("img/function/reveal.png",confidence=.9)
+        # Simulate 
+        keyboard.press('3')
+        time.sleep(keydown_delay)
+        keyboard.release('3')
+        keyboard.press('y')
+        time.sleep(keydown_delay)
+        keyboard.release('y')
+        #find_and_click_image("img/function/reveal.png",confidence=.9)
 
 def spam_click():
     global is_rolling
@@ -447,12 +456,14 @@ def spam_click():
     reset_cursor()
 
 def spam_key():
+    print("W spam activated.")
     global is_rolling
     is_rolling = True
-
     while is_rolling:
-        press('w')
-        time.sleep(0.05)
+        if keyboard.is_pressed('d'): #and not keyboard.is_pressed('q'):
+            keyboard.send('w')
+            time.sleep(.03)
+            #keyboard.release('w')
 
 def auto_symbol():
     """ Automatically uses the symbols from Arcane River and attempts to equip them. """
@@ -718,12 +729,8 @@ def update_delay(*args):
 # Gear level dropdown
 gear_level_label=label("Gear Level:")
 gear_level_label.grid(row=2, column=0)
-gear_level_dropdown=ttk.Combobox(
-root,
-values=gear_level_options,
-width=5)
-gear_level_dropdown.grid(
-row=2,column=1,sticky="w")
+gear_level_dropdown=ttk.Combobox(root,values=gear_level_options,width=5)
+gear_level_dropdown.grid(row=2,column=1,sticky="w")
 gear_level_dropdown.bind('<<ComboboxSelected>>',gear_level_changed)
 # rarity dropdown
 rarity_label=label("Rarity:")
@@ -753,8 +760,7 @@ star_limit_dropdown.bind('<<ComboboxSelected>>', lambda event: star_limit_change
 symbol_label=label("Symbol:")
 symbol_dropdown=ttk.Combobox(root,values=regions,width=6)
 symbol_dropdown.bind('<<ComboboxSelected>>', lambda event: symbol_changed())
-symbol_button = ctk.CTkButton(root,text="Auto Symbol",command=auto_symbol,
-    fg_color=("#1C1C1C", "#1C1C1C"),hover_color=("#424242", "#424242"),width=5,)
+symbol_button = ctk.CTkButton(root,text="Auto Symbol",command=auto_symbol,fg_color=("#1C1C1C", "#1C1C1C"),hover_color=("#424242", "#424242"),width=5,)
 symbol_label.grid(row=10, column=0)
 symbol_dropdown.grid(row=10,column=1,sticky="w")
 symbol_button.grid(row=10,column=1,padx=60,pady=5,sticky="e")
@@ -781,9 +787,7 @@ auto_craft_button = ctk.CTkButton(
     hover_color=("#424242", "#424242"),
     width=5,
     )
-auto_craft_button.grid(
-    row=0, column=1
-    )
+auto_craft_button.grid(row=0,column=1)
 
 # Stop hotkey tip
 stop_key_label = label("Press Shift to STOP any process.")
@@ -831,11 +835,7 @@ auto_starforce_button = ctk.CTkButton(
     hover_color=("#424242", "#424242"),
     width=5,
     )
-auto_starforce_button.grid(
-    row=9, column=1,
-    padx=50,
-    sticky="w"
-    )
+auto_starforce_button.grid(row=9, column=1, padx=50, sticky="w")
 
 # Delay of reroll
 # Create the delay label
@@ -862,20 +862,16 @@ reveal_button = ctk.CTkButton(
     hover_color=("#424242", "#424242"),
     width=5,
     )
-reveal_button.grid(
-    row=11, column=1,
-    padx=70,
-    sticky="w"
-    )
+reveal_button.grid(row=11,column=1,padx=70,sticky="w")
 
 
 
 # HOTKEYS
-keyboard.add_hotkey('ctrl+r', calculate_stat)
-keyboard.add_hotkey('ctrl+p', auto_starforce)
-keyboard.add_hotkey('ctrl+d', spam_click)
-keyboard.add_hotkey('ctrl+e', spam_key)
-keyboard.add_hotkey('ctrl+b', auto_craft)
+keyboard.add_hotkey('ctrl+z+r', calculate_stat)
+keyboard.add_hotkey('ctrl+z+s', auto_starforce)
+keyboard.add_hotkey('ctrl+z+c', spam_click)
+keyboard.add_hotkey('ctrl+1', spam_key)
+keyboard.add_hotkey('ctrl+z+v', auto_craft)
 
 # Create a dictionary to store widgets and their tooltips
 tooltips = {
