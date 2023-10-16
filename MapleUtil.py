@@ -286,7 +286,7 @@ def select_region():
         print("Region selection canceled. Keeping the old region values.")
     return region
 
-def cube_prompt_user():
+def cube_prompt_user(): # add flexcibility for auto grab cube, and user can choose whether use equipment window or Equip tab
     """
     Function that handles prompting the user to cube an item.
     """
@@ -390,6 +390,7 @@ def auto_rank():
         elif is_rolling:
             print("Rank not matched.")
             reroll()
+            sleep_duration = float(cooldown_duration.get())
             time.sleep(sleep_duration)
 
 # Starforce automation
