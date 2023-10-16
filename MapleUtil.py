@@ -7,11 +7,15 @@ TODO:
     - session amount (total)
     - current iteration
 * optimize calculate_stat function:
-    - implement multiconditional calculation
+    - implement multiconditional calculation (hit 3L stat or 1L drop or Tier Up etc.)
     - condense calculations by eliminating the excess searching of images outside of the specific scope of tier+level
     - add allstat images and write algorithm to consider them in match total
+* continue cubing on another item prompt
+
 LILIA CUTE MASCOT??? convert an image to ASCII artt for code intro
+
 """
+
 
 #############################################
 # Imports
@@ -103,6 +107,9 @@ def close_cube_window():
     if cooldown_remaining > 0:
         time.sleep(cooldown_remaining)
     find_and_click_image("img/function/okorange.png", confidence=.9)
+    if multi_cube_state.get() == "on":
+        is_rolling = True
+        cube_prompt_user()
     return
 
 # Image locator + click
@@ -281,7 +288,7 @@ def select_region():
 
 def cube_prompt_user():
     """
-    Your function description here.
+    Function that handles prompting the user to cube an item.
     """
     global last_reroll_time
 
@@ -289,9 +296,13 @@ def cube_prompt_user():
         return
     else:
         print("Ya gotta cube somethin'!")
+        if find_and_click_image("img/inventory/useactive.png", locate=True) is False:
+            find_and_click_image("img/inventory/use.png")
+        find_and_click_image("img/function/epic_cube.png")
+
         while is_rolling:
             update_cursor()
-            if is_rolling is False or pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.9):
+            if pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.9):
                 return
             if find_and_click_image("img/function/okgreen.png"):
                 last_reroll_time = time.time() # Update the last reroll time
@@ -527,6 +538,7 @@ root.resizable(True, True)
 ########### Variables
 global_padding = 5
 auto_ok_state = ctk.StringVar(value="off")
+multi_cube_state = ctk.StringVar(value="off")
 star_limits = [0, 10, 15]  # Available star limits
 regions = ['daily','VJ', 'CC', 'LL', 'AR', 'MR', 'ES']
 gear_level_options = ['Low', 'High']
@@ -565,6 +577,7 @@ def save_settings():
     config['General'] = {
         'CooldownDuration': cooldown_duration.get(),
         'AutoOKState': auto_ok_state.get(),
+        'MultiCubeState': multi_cube_state.get(),
         'GearLevelSetting': gear_level_dropdown.get(),
         'RaritySetting': rarity_dropdown.get(),
         'StarLimitSetting': star_limit_dropdown.get(),
@@ -581,7 +594,7 @@ def save_settings():
 
 # Load settings function (updated to avoid overwriting the settings file)
 def load_settings():
-    global region, auto_ok_state, cooldown_duration  # Add these lines to indicate that we want to modify the global variables
+    global region, auto_ok_state, cooldown_duration, multi_cube_state  # Add these lines to indicate that we want to modify the global variables
 
     config = configparser.ConfigParser()
 
@@ -595,6 +608,7 @@ def load_settings():
         config['General'] = {
             'CooldownDuration': '1.80',
             'AutoOKState': 'off',
+            'MultiCubeState': 'off',
             'GearLevelSetting': 'Low',
             'RaritySetting': 'Epic',
             'StarLimitSetting': '0',
@@ -607,6 +621,7 @@ def load_settings():
     # Load settings from the configuration file or use default values
     cooldown_duration_value = config['General'].getfloat('CooldownDuration', 1.80)
     auto_ok_state.set(config['General'].get('AutoOKState', 'off'))
+    multi_cube_state.set(config['General'].get('MultiCubeState', 'off'))
     gear_level = config['General'].get('GearLevelSetting', 'Low')
     rarity = config['General'].get('RaritySetting', 'Epic')
     star_limit = config['General'].getint('StarLimitSetting', 0)
@@ -640,7 +655,7 @@ def load_settings():
     root.geometry(window_dimension)
 
 def checkbox_event():
-    print("Automatically close cube UI set to: ", auto_ok_state.get())
+    print("After cube, autoclose: ", auto_ok_state.get(), ", cube again: ", multi_cube_state.get())
     save_settings()
 
 # Label function
@@ -824,7 +839,16 @@ auto_ok_checkbox = ctk.CTkCheckBox(
     onvalue="on",
     offvalue="off"
     )
-auto_ok_checkbox.grid(row=7, column=1, padx=60, sticky="w")
+auto_ok_checkbox.grid(row=6, column=1, padx=60, sticky="w")
+
+multi_cube_checkbox = ctk.CTkCheckBox(
+    root, text="Multi Cube",
+    command=checkbox_event,
+    variable=multi_cube_state,
+    onvalue="on",
+    offvalue="off"
+    )
+multi_cube_checkbox.grid(row=7, column=1, padx=60, sticky="w")
 
 # Auto Starforce button
 auto_starforce_button = ctk.CTkButton(
@@ -860,11 +884,8 @@ reveal_button = ctk.CTkButton(
     command=reveal,
     fg_color=("#1C1C1C", "#1C1C1C"),
     hover_color=("#424242", "#424242"),
-    width=5,
-    )
+    width=5)
 reveal_button.grid(row=11,column=1,padx=70,sticky="w")
-
-
 
 # HOTKEYS
 keyboard.add_hotkey('ctrl+z+r', calculate_stat)
