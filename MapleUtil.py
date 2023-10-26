@@ -47,18 +47,6 @@ pag.PAUSE = 0.005
 last_reroll_time = time.time()
 is_rolling = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
-# Define image names as a list
-IMAGE_NAMES = [
-    "okgreen",
-    "craftok2",
-    "craft",
-    "yes",
-    "extract",
-    "fuse",
-    "rankupfam",
-    "next",
-    "confirm"
-]
 
 # Define a dictionary to map ranks to their respective image filenames
 rank_images = {
@@ -71,10 +59,8 @@ rank_images = {
 # Define custom confidences for specific images
 CUSTOM_CONFIDENCES = {
     "fuse": .97,
-    "rankupfam": 0.98
+    "rankupfam": 0.98,
 }
-# Construct full image paths using f-strings
-IMAGE_PATHS = [f"img/function/{name}.png" for name in IMAGE_NAMES]
 
 #############################################
 ############### Defined Functions
@@ -420,6 +406,11 @@ def auto_starforce():
                 reset_cursor()
                 break  # Break the loop immediately
 
+# Define image names as a list
+IMAGE_NAMES = ["okgreen","craftok2","craft","yes","extract","fuse","rankupfam","next","confirm"]
+# Construct full image paths using f-strings
+IMAGE_PATHS = [f"img/function/{name}.png" for name in IMAGE_NAMES]
+
 def auto_craft():
     print("Crafting...")
     global is_rolling
@@ -438,6 +429,26 @@ def auto_craft():
 
 def chicken_dance():
     print("chiggen")
+
+def shooting_range():
+    global is_rolling
+    is_rolling = True
+    print("Nautilus Shooting Range function started! Good luck!")
+    # Define Shooting Range images
+    shootrange_images = ['bronze','silver','gold','pot1','pot2','pot3']
+    # Construct full image paths using f-strings
+    shootrange_path = [f"img/shootrange/{name}.png" for name in shootrange_images]
+
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        while is_rolling:  # Loop as long as is_rolling is True
+            update_cursor()
+            futures = [executor.submit(find_and_click_image, image_path) for image_path in shootrange_path]
+            # Wait for all tasks to complete
+            concurrent.futures.wait(futures)
+
+            if not is_rolling:  # Check if is_rolling changed during this iteration
+                reset_cursor()
+                break  # Break the loop immediately
 
 # Auto reveal function for familiars - also open threads of fate rn, im too lazy make separate function
 def reveal():
@@ -894,6 +905,7 @@ keyboard.add_hotkey('ctrl+z+s', auto_starforce)
 keyboard.add_hotkey('ctrl+z+c', spam_click)
 keyboard.add_hotkey('ctrl+1', spam_key)
 keyboard.add_hotkey('ctrl+z+v', auto_craft)
+keyboard.add_hotkey('ctrl+z+t', shooting_range)
 
 # Create a dictionary to store widgets and their tooltips
 tooltips = {
