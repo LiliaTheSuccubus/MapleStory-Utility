@@ -65,18 +65,30 @@ CUSTOM_CONFIDENCES = {
 #############################################
 ############### Defined Functions
 #############################################
+
+## Smaller functions used in other functions to save lines
+
 def calculate_gear_rarity_values(attribute, rarity, gear_level):
     gear_level_values = base_values[gear_level][rarity]
     return [f"{attribute}{value}" for value in gear_level_values if value != 0]
-
-# Reset cursor position
-def reset_cursor():
-    pag.moveTo(initial_position[0], initial_position[1])
 
 # Update cursor position
 def update_cursor():
     global initial_position
     initial_position = pag.position()
+
+# Reset cursor position to last updated position
+def reset_cursor():
+    pag.moveTo(initial_position[0], initial_position[1])
+
+def check_cooldown(): # Doesn't modify any values so global variables SHOULDN'T be needed.
+    """
+    Buffers the button timeout duration, so close_cube_window always works
+    """
+    time_elapsed = time.time() - last_reroll_time
+    cooldown_remaining = 1.7 - time_elapsed
+    if cooldown_remaining > 0:
+        time.sleep(cooldown_remaining)
 
 def close_cube_window():
     """
@@ -122,20 +134,12 @@ def find_and_click_image(image_path, n=1, confidence=0.98, debug=False, locate=F
         if debug is True:
             print(f"I didn't find {image_path}! You sure that's the right image? Maybe adjust the confidence ({confidence})!")
         return False
-
-def check_cooldown(): # Doesn't modify any values so global variables SHOULDN'T be needed.
-    """
-    Waits for  remainder of the reroll cooldown before proceeding
-    """
-    time_elapsed = time.time() - last_reroll_time
-    cooldown_remaining = 1.7 - time_elapsed
-    if cooldown_remaining > 0:
-        time.sleep(cooldown_remaining)
     
 def check_rank():
     """
     Acts like a traffic stop; 
     Waits for rank to appear in the cubing window before proceeding.
+    Unused currently because of issues with speed.
     """
     rank_found = False
 
@@ -435,14 +439,14 @@ def shooting_range():
     is_rolling = True
     print("Nautilus Shooting Range function started! Good luck!")
     # Define Shooting Range images
-    shootrange_images = ['bronze','silver','gold','pot1','pot2','pot3']
+    shootrange_images = ['bronze','silver','silver2','gold','pot1','pot2','pot3']
     # Construct full image paths using f-strings
     shootrange_path = [f"img/shootrange/{name}.png" for name in shootrange_images]
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
         while is_rolling:  # Loop as long as is_rolling is True
             update_cursor()
-            futures = [executor.submit(find_and_click_image, image_path) for image_path in shootrange_path]
+            futures = [executor.submit(find_and_click_image, image_path, confidence = .9) for image_path in shootrange_path]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
 
@@ -489,7 +493,9 @@ def spam_key():
             #keyboard.release('w')
 
 def auto_symbol():
-    """ Automatically uses the symbols from Arcane River and attempts to equip them. """
+    """ Automatically uses the symbols from Arcane River and attempts to equip them.
+        Selecting a specific region is for automatically using the selectors received from weekly River pqs.
+        Selecting daily will use all available symbols in the equipment tab."""
 
     use_active = find_and_click_image("img/inventory/useactive.png", locate=True)
     symbol = symbol_dropdown.get()
