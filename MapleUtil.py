@@ -423,8 +423,8 @@ def auto_starforce():
             concurrent.futures.wait(futures)
 
             if not automate:  # Check if automate changed during this iteration
-                reset_cursor()
                 break  # Break the loop immediately
+        reset_cursor()
 
 # Define image names as a list
 IMAGE_NAMES = ["okgreen","craftok2","craft","yes","extract","fuse","rankupfam","next","confirm"]
@@ -443,12 +443,13 @@ def auto_craft():
             concurrent.futures.wait(futures)
 
             if not automate:  # Check if automate changed during this iteration
-                reset_cursor()
                 break  # Break the loop immediately
+        reset_cursor()
 
 def chicken_dance():
     print("chiggen")
 
+# RIP Night Troupe
 def shooting_range():
     start_automating()
     print("Nautilus Shooting Range function started! Good luck!")
