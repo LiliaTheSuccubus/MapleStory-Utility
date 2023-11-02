@@ -1,4 +1,4 @@
-"""Creates a desktop shortcut that can run Cuber from anywhere.""" #credits to tanzjeffrey
+"""Creates a desktop shortcut that can run program from anywhere.""" #credits to tanzjeffrey
 
 import os
 import sys
