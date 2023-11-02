@@ -10,7 +10,8 @@ TODO:
     - implement multiconditional calculation (hit 3L stat or 1L drop or Tier Up etc.)
     - condense calculations by eliminating the excess searching of images outside of the specific scope of tier+level
     - add allstat images and write algorithm to consider them in match total
-* continue cubing on another item prompt
+* continue cubing on another item prompt - almost done, needs to not stop rolling
+* auto threads of fate
 
 LILIA CUTE MASCOT??? convert an image to ASCII artt for code intro
 
@@ -45,7 +46,7 @@ import concurrent.futures
 initial_position = pag.position()
 pag.PAUSE = 0.005
 last_reroll_time = time.time()
-is_rolling = False  # Flag to indicate if the program is actively rolling
+automate = False  # Flag to indicate if the program is actively rolling
 star_limit = 0
 
 # Define a dictionary to map ranks to their respective image filenames
@@ -68,9 +69,20 @@ CUSTOM_CONFIDENCES = {
 
 ## Smaller functions used in other functions to save lines
 
+def start_automating():
+    global automating
+    automating = True
+
+def stop_automating():
+    global automating
+    automating = False
+
 def calculate_gear_rarity_values(attribute, rarity, gear_level):
     gear_level_values = base_values[gear_level][rarity]
-    return [f"{attribute}{value}" for value in gear_level_values if value != 0]
+    if attribute == "AS":
+        return [f"{attribute}{int(value) - 3}" for value in gear_level_values if value != 0]
+    else:
+        return [f"{attribute}{value}" for value in gear_level_values if value != 0]
 
 # Update cursor position
 def update_cursor():
@@ -98,17 +110,11 @@ def close_cube_window():
     * closes cube UI by pressing OK
     """
     update_cursor()
-    global is_rolling
-    is_rolling = False
     time_elapsed = time.time() - last_reroll_time
     cooldown_remaining = 1.7 - time_elapsed
     if cooldown_remaining > 0:
         time.sleep(cooldown_remaining)
     find_and_click_image("img/function/okorange.png", confidence=.9)
-    if multi_cube_state.get() == "on":
-        is_rolling = True
-        cube_prompt_user()
-    return
 
 # Image locator + click
 def find_and_click_image(image_path, n=1, confidence=0.98, debug=False, locate=False):
@@ -143,7 +149,7 @@ def check_rank():
     """
     rank_found = False
 
-    while rank_found is False and is_rolling:
+    while rank_found is False and automate:
         for rank, image_path in rank_images.items():
             if pag.locateCenterOnScreen(image_path, region=region, confidence=0.9):
                 #print(f"Rank {rank} detected. Proceeding...")
@@ -162,19 +168,19 @@ def reroll():
     * automatically uses cube to reroll potential
     * is cute :3
     """
-    global last_reroll_time, is_rolling
+    global last_reroll_time, automate
 
     # if check_rank():
     outofcube = pag.locateCenterOnScreen("img/function/outofcube.png",region=region,confidence=0.97)
     retry_button = pag.locateOnScreen("img/function/conemoretry.png",region=region,confidence=0.8)
     
-    if is_rolling:
+    if automate:
         if outofcube:
             print("Out of cubes, boss!")
             if auto_ok_state.get() == "on":
                 close_cube_window()
-            else:
-                is_rolling = False # Looping stopped
+            automate = False # Looping stopped
+            return
         
         if retry_button is not None:
             update_cursor()
@@ -182,7 +188,7 @@ def reroll():
             # focus_maplestory_window() - fix this thingy so program wont click outside
             pag.click(retry_button, clicks=5)
             pag.press('enter', presses=5)
-            print("Okay! I rolled it for ya~!")
+            #print("Okay! I rolled it for ya~!")
             last_reroll_time = time.time()  # Update the last reroll time
             reset_cursor()
 
@@ -290,32 +296,36 @@ def cube_prompt_user(): # add flexcibility for auto grab cube, and user can choo
             find_and_click_image("img/inventory/use.png")
         find_and_click_image("img/function/epic_cube.png")
 
-        while is_rolling:
+        while automate:
             update_cursor()
             if pag.locateCenterOnScreen("img/function/conemoretry.png", region=region, confidence=0.9):
                 return
             if find_and_click_image("img/function/okgreen.png"):
                 last_reroll_time = time.time() # Update the last reroll time
+        
+        # if multi_cube_state.get() == "on":
+        #     calculate_stat()
 
 # Calculate Stat function for rolling potentials
 def calculate_stat():
     """
     
     """
-    global is_rolling
-    is_rolling = True
+    start_automating()
     attribute = attribute_dropdown.get()
     total = int(total_value_dropdown.get())
     rarity = rarity_dropdown.get()
     gear_level = gear_level_dropdown.get()
     images = {}
     available_values = calculate_gear_rarity_values(attribute, rarity, gear_level)
+    allstat_values = calculate_gear_rarity_values("AS", rarity, gear_level)
     count = 0
     lines = []  # Initialize a list to store the lines found
     matched_coordinates = set()  # Keep track of matched coordinates
-    print(available_values)
+    print(available_values,allstat_values)
 
-    for value in available_values:
+    for value in available_values + allstat_values:
+        # Check if the image name is in available_values or as_values
         img_path = f"img/{value}.png"
 
         if os.path.exists(img_path):
@@ -327,57 +337,64 @@ def calculate_stat():
     print(f"So ya want {total} {attribute}? I'll see what I can do!")
     save_settings()
     
-    print("Alrighty, gambling time! Haha~")
-    while count < total and is_rolling:
-        print("I'm mathing...")
+    #print("Alrighty, gambling time! Haha~")
+    while count < total and automate:
+        #print("I'm mathing...")
         for img_name, img in images.items():
             matches = list(pag.locateAllOnScreen(img, region=region, confidence=0.96))
-            line_number = int(img_name.split(f"{attribute}")[-1])
+            # Adjust this line to extract the line_number for both available values and allstat values
+            if "AS" in img_name:
+                line_number = int(img_name.split("AS")[-1])
+            else:
+                line_number = int(img_name.split(attribute)[-1])
+            
             for match in matches:
                 if match not in matched_coordinates:
                     lines.append(line_number)
                     matched_coordinates.add(match)
         count = sum(lines) # Adds up lines for total value
-        if is_rolling:
-            print(f"I found these numbers: {lines}!")
-            print(f"So that's about, uh... {count}?")
-        if count >= total:
+        print(f"I found these numbers: {lines}!")
+        print(f"So that's about, uh... {count}?")
+        if count >= total and automate:
             print(f"Awesomepossum! We reached the goal of {total} {attribute}!")
             if auto_ok_state.get() == "on":
                 close_cube_window()
-            else:
-                is_rolling = False # Looping stopped
-            return
-        elif is_rolling:
+            if multi_cube_state.get() == "on":
+                # If multi-cube is on, reset your variables and continue the loop
+                count = 0  # reset count to zero
+                lines = []  # Clear lines
+                matched_coordinates.clear()  # Clear matched coordinates
+                continue
+            automate = False # Loop stopped
+        elif automate:
             print("We didn't get enough, boss... Lemme roll it again!")
             count = 0  # reset count to zero
             lines = []  # Clear lines
             matched_coordinates.clear()  # Clear matched coordinates
-            if is_rolling:
+            if automate:
                 reroll()
-            sleep_duration = float(cooldown_duration.get())
-            time.sleep(sleep_duration)
+            if automate:
+                sleep_duration = float(cooldown_duration.get())
+                time.sleep(sleep_duration)
 
 # Automatic Rank Up / Tier Up the current equip to selected rank
 def auto_rank():
-    global is_rolling
-    is_rolling = True
+    start_automating()
     rank = rarity_dropdown.get()
-    
     cube_prompt_user()
     print("Tiering up!")
     save_settings()
 
-    while is_rolling:
+    while automate:
         rank_location = pag.locateCenterOnScreen(rank_images.get(rank), region=region, confidence=0.90)
         if rank_location: # If desired rank is located
             print(f"{rank} achieved!")
             if auto_ok_state.get() == "on":
                 close_cube_window()
             else:
-                is_rolling = False
+                automate = False
             return
-        elif is_rolling:
+        elif automate:
             print("Rank not matched.")
             reroll()
             sleep_duration = float(cooldown_duration.get())
@@ -386,8 +403,7 @@ def auto_rank():
 # Starforce automation
 def auto_starforce():
     print("Beginning Starforcing... Press Shift to Stop.")
-    global is_rolling
-    is_rolling = True
+    start_automating()
     star_limit = int(star_limit_dropdown.get())
     print("Starforcing!")
 
@@ -400,13 +416,13 @@ def auto_starforce():
     ]
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        while is_rolling:
+        while automate:
             update_cursor()
             futures = [executor.submit(find_and_click_image, image_path,1,confidence=.90) for image_path in Buttons]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
 
-            if not is_rolling:  # Check if is_rolling changed during this iteration
+            if not automate:  # Check if automate changed during this iteration
                 reset_cursor()
                 break  # Break the loop immediately
 
@@ -417,17 +433,16 @@ IMAGE_PATHS = [f"img/function/{name}.png" for name in IMAGE_NAMES]
 
 def auto_craft():
     print("Crafting...")
-    global is_rolling
-    is_rolling = True
+    start_automating()
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        while is_rolling:  # Loop as long as is_rolling is True
+        while automate:  # Loop as long as automate is True
             update_cursor()
             futures = [executor.submit(find_and_click_image, image_path) for image_path in IMAGE_PATHS]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
 
-            if not is_rolling:  # Check if is_rolling changed during this iteration
+            if not automate:  # Check if automate changed during this iteration
                 reset_cursor()
                 break  # Break the loop immediately
 
@@ -435,8 +450,7 @@ def chicken_dance():
     print("chiggen")
 
 def shooting_range():
-    global is_rolling
-    is_rolling = True
+    start_automating()
     print("Nautilus Shooting Range function started! Good luck!")
     # Define Shooting Range images
     shootrange_images = ['bronze','silver','silver2','gold','pot1','pot2','pot3']
@@ -444,24 +458,22 @@ def shooting_range():
     shootrange_path = [f"img/shootrange/{name}.png" for name in shootrange_images]
 
     with concurrent.futures.ThreadPoolExecutor() as executor:
-        while is_rolling:  # Loop as long as is_rolling is True
+        while automate:  # Loop as long as automate is True
             update_cursor()
             futures = [executor.submit(find_and_click_image, image_path, confidence = .9) for image_path in shootrange_path]
             # Wait for all tasks to complete
             concurrent.futures.wait(futures)
 
-            if not is_rolling:  # Check if is_rolling changed during this iteration
-                reset_cursor()
+            if not automate:  # Check if automate changed during this iteration
                 break  # Break the loop immediately
 
 # Auto reveal function for familiars - also open threads of fate rn, im too lazy make separate function
 def reveal():
-    global is_rolling
-    is_rolling = True
+    start_automating()
     keydown_delay = 0.015
     print("Reveal() function activated!")
 
-    while is_rolling:
+    while automate:
         # Simulate 
         keyboard.press('3')
         time.sleep(keydown_delay)
@@ -472,21 +484,18 @@ def reveal():
         #find_and_click_image("img/function/reveal.png",confidence=.9)
 
 def spam_click():
-    global is_rolling
-    is_rolling = True
+    start_automating()
     update_cursor()
     print("I'm clickin' as fast as I can!")
-
-    while is_rolling:
+    while automate:
         pag.click()
         time.sleep(0.01)
     reset_cursor()
 
 def spam_key():
     print("W spam activated.")
-    global is_rolling
-    is_rolling = True
-    while is_rolling:
+    start_automating()
+    while automate:
         if keyboard.is_pressed('d'): #and not keyboard.is_pressed('q'):
             keyboard.send('w')
             time.sleep(.03)
@@ -530,20 +539,21 @@ def auto_symbol():
     else:
         print(f"No image found for {symbol}")
 
-# Function to check for the Shift key and update the is_rolling flag
-def hotkey_handler():
-    global is_rolling
+# Function to check for the Shift key and stop automating
+def manual_override():
     while True:
-        if is_rolling and keyboard.is_pressed('shift'):
-            is_rolling = False
-            print("Functions stopped.")
-        time.sleep(0.05)
+        if automate and keyboard.is_pressed('shift'):
+            stop_automating()
+        elif not automate:
+            time.sleep(.5)  # Adjust the sleep duration for dormant state
+        else:
+            time.sleep(0.05)  # Adjust the sleep duration for active state
 
-# Create a thread for the hotkey handling
-hotkey_thread = threading.Thread(target=hotkey_handler)
+# Create a thread for the manual override function
+manual_control = threading.Thread(target=manual_override)
 # Set the thread as a daemon to automatically exit when the main thread exits
-hotkey_thread.daemon = True
-hotkey_thread.start()
+manual_control.daemon = True
+manual_control.start()
 
 #########################################################################################
 # Root mainframe GU
