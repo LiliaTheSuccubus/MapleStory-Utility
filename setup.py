@@ -1,4 +1,4 @@
-"""Creates a desktop shortcut that can run program from anywhere.""" #credits to tanzjeffrey
+"""Creates a desktop shortcut that can run the program from anywhere.""" #credits to tanzjeffrey
 
 import os
 import sys
@@ -21,13 +21,13 @@ def run_as_admin():
             None,
             1
         )
-        print(' ~  Finished setting up Cuber')
+        print(' ~  Finished setting up MapleUtil')
     exit(0)
 
 
 def create_desktop_shortcut():
     """Creates and saves a desktop shortcut using absolute paths"""
-    print('\n[~] Creating desktop shortcut for Cuber:')
+    print('\n[~] Creating desktop shortcut for MapleUtil:')
     cwd = os.getcwd()
     target = os.path.join(os.environ['WINDIR'], 'System32', 'cmd.exe')
 
@@ -37,11 +37,11 @@ def create_desktop_shortcut():
         print(" -  Leaving command prompt open after program finishes")
 
     shell = client.Dispatch('WScript.Shell')
-    shortcut_path = os.path.join(shell.SpecialFolders('Desktop'), 'Cuber.lnk')
+    shortcut_path = os.path.join(shell.SpecialFolders('Desktop'), 'MapleUtil.lnk')
     shortcut = shell.CreateShortCut(shortcut_path)
     shortcut.Targetpath = target
-    shortcut.Arguments = flag + f' \"cd {cwd} & python Cuber.py\"'
-    shortcut.IconLocation = os.path.join(cwd, 'assets', 'icon.ico')
+    shortcut.Arguments = flag + f' \"cd {cwd} & python MapleUtil.py\"'
+    shortcut.IconLocation = os.path.join(cwd, 'img/icon/cubeicon.ico')
     try:
         shortcut.save()
     except:
