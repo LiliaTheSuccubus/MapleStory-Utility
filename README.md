@@ -14,15 +14,6 @@ Describe how to install your project.
 
 Heck, I don't know how to release this yet, since I just run it through Visual Studio Code. I'll come back round to it and figure out a way to do that. It's prolly to do with packaging or something.
 
-I use the below command line thingies from [Jeffrey](https://github.com/tanjeffreyz) to make .exe for my program. eventually i learn how to package it correctly and stuff. usually i just run from inside VS Code with debug function, but that mean u have to install VSCode if u wanna use
-  <li>
-    Inside main directory, open a command prompt and run:
-    <pre><code>python -m pip install -r requirements.txt</code></pre>
-  </li>
-  <li>
-    Lastly, create a desktop shortcut by running:
-    <pre><code>python setup.py</code></pre>
-
 ## Usage
 
 Explain how to use your project.
